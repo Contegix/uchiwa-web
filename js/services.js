@@ -5,8 +5,8 @@ var serviceModule = angular.module('uchiwa.services', []);
 /**
 * Uchiwa
 */
-serviceModule.service('backendService', ['conf', '$http', '$interval', '$location', 'notification', '$rootScope', '$timeout',
-  function(conf, $http, $interval, $location, notification, $rootScope, $timeout){
+serviceModule.service('backendService', ['conf', '$http', '$interval', '$location', '$rootScope', '$timeout',
+  function(conf, $http, $interval, $location, $rootScope, $timeout){
     var self = this;
     this.auth = function () {
       return $http.get('auth');
@@ -68,6 +68,7 @@ serviceModule.service('backendService', ['conf', '$http', '$interval', '$locatio
 
         $rootScope.checks = data.Checks;
         $rootScope.dc = data.Dc;
+        $rootScope.aggregates = data.Aggregates;
 
         $rootScope.clients = _.map(data.Clients, function(client) {
           var existingClient = _.findWhere($rootScope.clients, {name: client.name, dc: client.dc});
@@ -98,8 +99,8 @@ serviceModule.service('backendService', ['conf', '$http', '$interval', '$locatio
 
       })
       .error(function (error) {
-        notification('error', 'Could not fetch Sensu data. Is Uchiwa running?');
-        console.error('Error: '+ JSON.stringify(error));
+        $rootScope.$emit('notification', 'error', 'Could not fetch Sensu data. Is Uchiwa running?');
+        console.error(error);
       });
     };
   }
@@ -108,7 +109,7 @@ serviceModule.service('backendService', ['conf', '$http', '$interval', '$locatio
 /**
 * Clients
 */
-serviceModule.service('clientsService', ['$location', '$rootScope', 'notification', 'backendService', function ($location, $rootScope, notification, backendService) {
+serviceModule.service('clientsService', ['$location', '$rootScope', 'backendService', function ($location, $rootScope, backendService) {
   this.getCheck = function (id, history) {
     return history.filter(function (item) {
       return item.check === id;
@@ -122,7 +123,7 @@ serviceModule.service('clientsService', ['$location', '$rootScope', 'notificatio
   };
   this.resolveEvent = function (dc, client, check) {
     if (!angular.isObject(client) || !angular.isObject(check)) {
-      notification('error', 'Could not resolve this event. Try to refresh the page.');
+      $rootScope.$emit('notification', 'error', 'Could not resolve this event. Try to refresh the page.');
       console.error('Received:\nclient='+ JSON.stringify(client) + '\ncheck=' + JSON.stringify(check));
       return false;
     }
@@ -132,7 +133,7 @@ serviceModule.service('clientsService', ['$location', '$rootScope', 'notificatio
 
     backendService.resolveEvent(payload)
       .success(function () {
-        notification('success', 'The event has been resolved.');
+        $rootScope.$emit('notification', 'success', 'The event has been resolved.');
         if ($location.url() !== '/events') {
           $location.url(encodeURI('/client/' + dc + '/' + client.name));
         } else {
@@ -143,18 +144,18 @@ serviceModule.service('clientsService', ['$location', '$rootScope', 'notificatio
         }
       })
       .error(function (error) {
-        notification('error', 'The event was not resolved. ' + error);
+        $rootScope.$emit('notification', 'error', 'The event was not resolved. ' + error);
       });
   };
   this.deleteClient = function (dc, client) {
     backendService.deleteClient(client, dc)
       .success(function () {
-        notification('success', 'The client has been deleted.');
+        $rootScope.$emit('notification', 'success', 'The client has been deleted.');
         $location.url('/clients');
         return true;
       })
       .error(function (error) {
-        notification('error', 'Could not delete the client '+ client +'. Is Sensu API running on '+ dc +'?');
+        $rootScope.$emit('notification', 'error', 'Could not delete the client '+ client +'. Is Sensu API running on '+ dc +'?');
         console.error(error);
       });
   };
@@ -248,7 +249,7 @@ serviceModule.service('routingService', ['$location', function ($location) {
 /**
 * Stashes
 */
-serviceModule.service('stashesService', ['$rootScope', '$modal', 'notification', 'backendService', function ($rootScope, $modal, notification, backendService) {
+serviceModule.service('stashesService', ['$rootScope', '$modal', 'backendService', function ($rootScope, $modal, backendService) {
   this.construct = function(item) {
     var check;
     var client;
@@ -273,8 +274,7 @@ serviceModule.service('stashesService', ['$rootScope', '$modal', 'notification',
       check = null;
     }
     else { // unknown
-      notification('error', 'Cannot handle this stash. Try to refresh the page.');
-      console.error('Cannot handle this stash. Received:\nitem: '+ JSON.stringify(item));
+      $rootScope.$emit('notification', 'error', 'Cannot handle this stash. Try to refresh the page.');
       return false;
     }
 
@@ -298,7 +298,7 @@ serviceModule.service('stashesService', ['$rootScope', '$modal', 'notification',
     event.stopPropagation();
 
     if (items.length === 0) {
-      notification('error', 'No items selected');
+      $rootScope.$emit('notification', 'error', 'No items selected');
     } else {
       var modalInstance = $modal.open({ // jshint ignore:line
         templateUrl: $rootScope.partialsPath + '/stash-modal.html',
@@ -328,13 +328,12 @@ serviceModule.service('stashesService', ['$rootScope', '$modal', 'notification',
       data.payload = {path: path};
       backendService.deleteStash(data)
         .success(function () {
-          notification('success', 'The stash has been deleted.');
+          $rootScope.$emit('notification', 'success', 'The stash has been deleted.');
           element.acknowledged = !element.acknowledged;
           return true;
         })
         .error(function (error) {
-          notification('error', 'The stash was not created. ' + error);
-          console.error(error);
+          $rootScope.$emit('notification', 'error', 'The stash was not created. ' + error);
           return false;
         });
     }
@@ -352,13 +351,12 @@ serviceModule.service('stashesService', ['$rootScope', '$modal', 'notification',
       }
       backendService.createStash(data)
         .success(function () {
-          notification('success', 'The stash has been created.');
+          $rootScope.$emit('notification', 'success', 'The stash has been created.');
           element.acknowledged = !element.acknowledged;
           return true;
         })
         .error(function (error) {
-          notification('error', 'The stash was not created. ' + error);
-          console.error(error);
+          $rootScope.$emit('notification', 'error', 'The stash was not created. ' + error);
           return false;
         });
     }
@@ -368,7 +366,7 @@ serviceModule.service('stashesService', ['$rootScope', '$modal', 'notification',
     var data = {dc: stash.dc, payload: {path: stash.path}};
     backendService.deleteStash(data)
       .success(function () {
-        notification('success', 'The stash has been deleted.');
+        $rootScope.$emit('notification', 'success', 'The stash has been deleted.');
         for (var i=0; $rootScope.stashes; i++) {
           if ($rootScope.stashes[i].path === stash.path) {
             $rootScope.stashes.splice(i, 1);
@@ -378,8 +376,7 @@ serviceModule.service('stashesService', ['$rootScope', '$modal', 'notification',
         return true;
       })
       .error(function (error) {
-        notification('error', 'The stash was not created. ' + error);
-        console.error(error);
+        $rootScope.$emit('notification', 'error', 'The stash was not created. ' + error);
         return false;
       });
   };
@@ -407,9 +404,31 @@ serviceModule.service('helperService', function() {
 */
 serviceModule.service('userService', ['$cookieStore', '$location', '$rootScope',
 function ($cookieStore, $location, $rootScope) {
-  this.logout = function() {
+  var getRole = function () {
+    if ($rootScope.auth) {
+      return $rootScope.auth.Role;
+    } else {
+      return 'operator';
+    }
+  };
+  this.canPost = function () {
+    var role = getRole();
+    if (role === 'operator' || role === 'admin') {
+      return true;
+    }
+    return false;
+  };
+  this.isAdmin = function () {
+    var role = getRole();
+    if (role === 'admin') {
+      return true;
+    }
+    return false;
+  };
+  this.logout = function () {
     $cookieStore.remove('uchiwa_auth');
     $rootScope.auth = false;
+    $rootScope.config = false;
     $location.path('login');
   };
 }]);
