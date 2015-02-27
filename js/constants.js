@@ -10,7 +10,16 @@ constantModule.value('conf', {
   theme: 'uchiwa-default'
 });
 
+constantModule.value('themes', [
+  {
+    name: 'uchiwa-default'
+  },
+  {
+    name: 'uchiwa-dark'
+  }
+]);
+
 // Version
 constantModule.constant('version', {
-  uchiwa: '0.5.1'
+  uchiwa: '0.6.0'
 });
