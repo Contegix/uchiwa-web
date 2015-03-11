@@ -4,8 +4,8 @@
   color: $navbar-text-color;
   height: 61px;
   background-color: $navbar-background-color;
-  margin-bottom: 0px;
-  border-bottom: 1px solid $navbar-border-color;
+  margin-bottom: 0;
+  border-bottom: 0;
 }
 
 .navbar > .container-fluid {
@@ -32,63 +32,4 @@
   padding-top: 12px;
   padding-left: 12px;
   padding-right: 12px;
-}
-
-.navbar hr {
-  margin-top: 10px;
-  margin-bottom: 10px;
-}
-
-.navbar .panel {
-  font-size: 13px;
-  font-weight: 400;
-  border: 0px;
-  margin-bottom: 0px;
-}
-
-.navbar .panel-body {
-  padding-top: 15px;
-  padding-bottom: 15px;
-}
-
-.navbar .panel.panel-top {
-  color: $panel-top-text-color;
-  text-align: center;
-  font-weight: 700;
-}
-
-.navbar .panel.panel-bottom {
-  text-transform: uppercase;
-}
-
-.navbar .panel .total {
-  font-size: 38px;
-}
-
-.navbar .panel .category {
-  text-transform: uppercase;
-  font-size: 15px;
-}
-
-.navbar .panel .small-category {
-  text-transform: uppercase;
-  font-size: 11px;
-}
-
-.navbar .panel .dc-title {
-  font-size: 15px;
-  text-align: center;
-}
-
-.navbar .panel .count {
-  font-weight: 700;
-}
-
-.navbar .dropdown-menu {
-  top: 85%;
-  min-width: 250px;
-}
-
-.navbar .dropdown-menu .heading {
-  padding: 40px;
 }

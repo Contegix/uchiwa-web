@@ -101,7 +101,7 @@ filterModule.filter('getExpireTimestamp', ['conf', function (conf) {
     if (stash.expire === -1) {
       return 'Never';
     }
-    var expiration = (stash.content.timestamp + stash.expire) * 1000;
+    var expiration = (moment().unix() + stash.expire) * 1000;
     return moment(expiration).format(conf.date);
   };
 }]);
@@ -189,9 +189,13 @@ filterModule.filter('imagey', function() {
   };
 });
 
-filterModule.filter('setMissingProperty', function() {
-  return function(property) {
-    return property || false;
+filterModule.filter('relativeTimestamp', function() {
+  return function(timestamp) {
+    if (isNaN(timestamp) || timestamp.toString().length !== 10) {
+      return timestamp;
+    }
+    timestamp = timestamp * 1000;
+    return moment(timestamp).startOf('minute').fromNow();
   };
 });
 
@@ -214,3 +218,9 @@ filterModule.filter('richOutput', ['$filter', function($filter) {
     return output;
   };
 }]);
+
+filterModule.filter('setMissingProperty', function() {
+  return function(property) {
+    return property || false;
+  };
+});

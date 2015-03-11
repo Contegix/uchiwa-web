@@ -123,7 +123,7 @@ controllerModule.controller('clients', ['clientsService', '$filter', 'helperServ
     $scope.pageHeaderText = 'Clients';
     titleFactory.set($scope.pageHeaderText);
 
-    $scope.predicate = '-status';
+    $scope.predicate = ['-status', 'name'];
 
     // Routing
     $scope.filters = {};
@@ -241,11 +241,13 @@ controllerModule.controller('events', ['clientsService', 'conf', '$cookieStore',
       _.each(selectedEvents, function(event) {
         $scope.resolveEvent(event.dc, event.client, event.check);
       });
+      helperService.unselectItems(selectedEvents);
     };
 
     $scope.silenceEvents = function($event, events) {
       var selectedEvents = helperService.selectedItems(events);
       $scope.stash($event, selectedEvents);
+      helperService.unselectItems(selectedEvents);
     };
 
     $scope.$watch('filters.q', function(newVal) {
@@ -332,24 +334,22 @@ function (backendService, $cookieStore, $location, notification, $rootScope, $sc
 /**
 * Navbar
 */
-controllerModule.controller('navbar', ['$rootScope', '$scope', 'navbarServices', 'routingService',
-  function ($rootScope, $scope, navbarServices, routingService) {
+controllerModule.controller('navbar', ['$location', '$rootScope', '$scope', 'navbarServices', 'routingService', 'userService',
+  function ($location, $rootScope, $scope, navbarServices, routingService, userService) {
+
+    // Helpers
+    $scope.getClass = function(path) {
+      if ($location.path().substr(0, path.length) === path) {
+        return 'selected';
+      } else {
+        return '';
+      }
+    };
 
     // Services
     $scope.go = routingService.go;
-    $scope.$on('sensu', function () {
-      // Update badges
-      navbarServices.countStatuses('clients', function (item) {
-        return item.status;
-      });
-      navbarServices.countStatuses('events', function (item) {
-        return item.check.status;
-      });
-
-      // Update alert badge
-      navbarServices.health();
-    });
-
+    $scope.logout = userService.logout;
+    $scope.user = userService;
   }
 ]);
 
@@ -370,8 +370,12 @@ controllerModule.controller('settings', ['$cookies', '$scope', 'titleFactory',
 /**
 * Sidebar
 */
-controllerModule.controller('sidebar', ['$location', '$scope', 'userService',
-  function ($location, $scope, userService) {
+controllerModule.controller('sidebar', ['$location', 'navbarServices', '$scope', 'userService',
+  function ($location, navbarServices, $scope, userService) {
+
+    $scope.user = userService;
+
+    // Get CSS class for sidebar elements
     $scope.getClass = function(path) {
       if ($location.path().substr(0, path.length) === path) {
         return 'selected';
@@ -380,8 +384,18 @@ controllerModule.controller('sidebar', ['$location', '$scope', 'userService',
       }
     };
 
-    $scope.logout = userService.logout;
-    $scope.user = userService;
+    $scope.$on('sensu', function () {
+      // Update badges
+      navbarServices.countStatuses('clients', function (item) {
+        return item.status;
+      });
+      navbarServices.countStatuses('events', function (item) {
+        return item.check.status;
+      });
+
+      // Update alert badge
+      navbarServices.health();
+    });
   }
 ]);
 
@@ -409,10 +423,10 @@ controllerModule.controller('aggregates', ['$scope', '$routeParams', 'routingSer
 ]);
 
 /**
-* Aggregates for Check
+* Aggregate
 */
-controllerModule.controller('check_aggregates', ['$rootScope', '$scope', '$routeParams', 'routingService', 'titleFactory',
-  function ($rootScope, $scope, $routeParams, routingService, titleFactory) {
+controllerModule.controller('aggregate', ['$http', '$rootScope', '$scope', '$routeParams', 'routingService', 'titleFactory',
+  function ($http, $rootScope, $scope, $routeParams, routingService, titleFactory) {
     $scope.pageHeaderText = 'Aggregates';
     titleFactory.set($scope.pageHeaderText);
 
@@ -422,37 +436,34 @@ controllerModule.controller('check_aggregates', ['$rootScope', '$scope', '$route
 
     $scope.dcId = decodeURI($routeParams.dcId);
     $scope.checkId = decodeURI($routeParams.checkId);
+    $scope.aggregate = null;
 
     $scope.$on('sensu', function() {
       $scope.check_aggregates = _.find($rootScope.aggregates, function(aggregate) { // jshint ignore:line
         return $scope.checkId === aggregate.check && $scope.dcId === aggregate.dc;
       });
     });
-  }
-]);
 
-/**
-* Aggregates for Issue within Check
-*/
-controllerModule.controller('check_issue_aggregates', ['$scope', '$http', '$routeParams', 'routingService', 'titleFactory',
-  function ($scope, $http, $routeParams, routingService, titleFactory) {
-    $scope.pageHeaderText = 'Aggregates';
-    titleFactory.set($scope.pageHeaderText);
+    var getAggregate = function () {
+      if (isNaN($scope.issued)) {
+        return;
+      }
 
-    // Services
-    $scope.go = routingService.go;
-    $scope.permalink = routingService.permalink;
+      $http.get('get_aggregate_by_issued?check=' + $scope.checkId + '&issued=' + $scope.issued + '&dc=' + $scope.dcId)
+      .success(function(data) {
+        $scope.aggregate = data;
+      })
+      .error(function(error) {
+        console.log('Error: ' + JSON.stringify(error));
+      });
+    };
 
-    $scope.dcId = decodeURI($routeParams.dcId);
-    $scope.checkId = decodeURI($routeParams.checkId);
-    $scope.issuedId = decodeURI($routeParams.issuedId);
-
-    $http.get('get_aggregate_by_issued?check=' + $scope.checkId + '&issued=' + $scope.issuedId + '&dc=' + $scope.dcId)
-    .success(function(data) {
-      $scope.aggregate = data;
-    })
-    .error(function(error) {
-      console.log('Error: ' + JSON.stringify(error));
+    // do we have a issued parameter? if so, display the aggregate result
+    $scope.issued = decodeURI($routeParams.issued);
+    getAggregate();
+    $scope.$on('$routeUpdate', function(){
+      $scope.issued = decodeURI($routeParams.issued);
+      getAggregate();
     });
   }
 ]);
