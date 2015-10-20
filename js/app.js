@@ -13,8 +13,10 @@ angular.module('uchiwa', [
   'ngRoute',
   'ngSanitize',
   // 3rd party dependencies
+  'angularMoment',
   'toastr',
-  'ui.bootstrap'
+  'ui.bootstrap',
+  'ui.gravatar'
 ]);
 
 angular.module('uchiwa')
@@ -28,17 +30,19 @@ angular.module('uchiwa')
       .when('/', {redirectTo: function () {
         return '/events';
       }})
-      .when('/login', {templateUrl: 'bower_components/uchiwa-web/partials/login/index.html', controller: 'login'})
-      .when('/events', {templateUrl: 'bower_components/uchiwa-web/partials/views/events.html', reloadOnSearch: false, controller: 'events'})
-      .when('/client/:dcId/:clientId', {templateUrl: 'bower_components/uchiwa-web/partials/views/client.html', reloadOnSearch: false, controller: 'client'})
-      .when('/clients', {templateUrl: 'bower_components/uchiwa-web/partials/views/clients.html', reloadOnSearch: false, controller: 'clients'})
-      .when('/checks', {templateUrl: 'bower_components/uchiwa-web/partials/views/checks.html', reloadOnSearch: false, controller: 'checks'})
-      .when('/info', {templateUrl: 'bower_components/uchiwa-web/partials/views/info.html', controller: 'info'})
-      .when('/stashes', {templateUrl: 'bower_components/uchiwa-web/partials/views/stashes.html', reloadOnSearch: false, controller: 'stashes'})
-      .when('/settings', {templateUrl: 'bower_components/uchiwa-web/partials/views/settings.html', controller: 'settings'})
-      .when('/aggregates', {templateUrl: 'bower_components/uchiwa-web/partials/views/aggregates.html', reloadOnSearch: false, controller: 'aggregates'})
-      .when('/aggregate/:dcId/:checkId', {templateUrl: 'bower_components/uchiwa-web/partials/views/aggregate.html', reloadOnSearch: false, controller: 'aggregate'})
+      .when('/aggregate/:dc/:check', {templateUrl: 'bower_components/uchiwa-web/partials/views/aggregate.html', reloadOnSearch: false, controller: 'AggregateController'})
+      .when('/aggregates', {templateUrl: 'bower_components/uchiwa-web/partials/views/aggregates.html', reloadOnSearch: false, controller: 'AggregatesController'})
+      .when('/checks', {templateUrl: 'bower_components/uchiwa-web/partials/views/checks.html', reloadOnSearch: false, controller: 'ChecksController'})
+      .when('/client/:dc/:client', {templateUrl: 'bower_components/uchiwa-web/partials/views/client.html', reloadOnSearch: false, controller: 'ClientController'})
+      .when('/clients', {templateUrl: 'bower_components/uchiwa-web/partials/views/clients.html', reloadOnSearch: false, controller: 'ClientsController'})
+      .when('/datacenters', {templateUrl: 'bower_components/uchiwa-web/partials/views/datacenters.html', controller: 'DatacentersController'})
+      .when('/events', {templateUrl: 'bower_components/uchiwa-web/partials/views/events.html', reloadOnSearch: false, controller: 'EventsController'})
+      .when('/info', {templateUrl: 'bower_components/uchiwa-web/partials/views/info.html', controller: 'InfoController'})
+      .when('/login', {templateUrl: 'bower_components/uchiwa-web/partials/login/index.html', controller: 'LoginController'})
+      .when('/settings', {templateUrl: 'bower_components/uchiwa-web/partials/views/settings.html', controller: 'SettingsController'})
+      .when('/stashes', {templateUrl: 'bower_components/uchiwa-web/partials/views/stashes.html', reloadOnSearch: false, controller: 'StashesController'})
       .otherwise('/');
+
     $tooltipProvider.options({animation: false, 'placement': 'bottom'});
   }
 ])
@@ -46,7 +50,8 @@ angular.module('uchiwa')
   $rootScope.alerts = [];
   $rootScope.events = [];
   $rootScope.partialsPath = 'bower_components/uchiwa-web/partials';
-  $rootScope.skipRefresh = false;
+  $rootScope.skipOneRefresh = false;
+  $rootScope.showCollectionBar = true;
   $rootScope.enterprise = conf.enterprise;
   $rootScope.themes = themes;
 
@@ -56,8 +61,8 @@ angular.module('uchiwa')
 
   // fetch the sensu data on every page change
   $rootScope.$on('$routeChangeSuccess', function () {
-    backendService.update();
     $rootScope.auth = $cookieStore.get('uchiwa_auth') || false;
+    backendService.getDatacenters();
   });
 
   $rootScope.$on('notification', function (event, type, message) {
@@ -69,3 +74,13 @@ angular.module('uchiwa')
     }
   });
 });
+
+// Gravatar
+angular.module('ui.gravatar').config([
+  'gravatarServiceProvider', function(gravatarServiceProvider) {
+    gravatarServiceProvider.defaults = {
+      'default': 'mm'
+    };
+    gravatarServiceProvider.secure = true;
+  }
+]);

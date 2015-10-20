@@ -16,6 +16,12 @@
   white-space: nowrap;
 }
 
+.table td.source {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .table td.output {
   text-overflow: ellipsis;
   overflow : hidden;
@@ -28,8 +34,16 @@
   white-space: nowrap;
 }
 
+.table td.dc {
+  word-break: break-all;
+}
+
 .table th.col-min {
   width: 4%;
+}
+
+.table th.col-min-ro {
+  width: 1%;
 }
 
 .table th.col-gravatar {

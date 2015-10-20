@@ -3,6 +3,7 @@
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -17,6 +18,27 @@
 html, html a {
   -webkit-font-smoothing: antialiased !important; }
 
+/* roboto-300 - latin */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 300;
+  src: local("Roboto Light"), local("Roboto-Light"), url("../../fonts/roboto-latin-300.woff2") format("woff2"), url("../../fonts/roboto-latin-300.woff") format("woff");
+  /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */ }
+/* roboto-regular - latin */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  src: local("Roboto"), local("Roboto-Regular"), url("../../fonts/roboto-latin-regular.woff2") format("woff2"), url("../../fonts/roboto-latin-regular.woff") format("woff");
+  /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */ }
+/* roboto-700 - latin */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 700;
+  src: local("Roboto Bold"), local("Roboto-Bold"), url("../../fonts/roboto-latin-700.woff2") format("woff2"), url("../../fonts/roboto-latin-700.woff") format("woff");
+  /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */ }
 body {
   font-size: 13px;
   padding-left: 50px;
@@ -66,12 +88,21 @@ hr {
 a {
   color: #5F97FB; }
 
+[ng-click] {
+  cursor: pointer; }
+
 .text-critical {
   color: #EA5443; }
+
+.absolute {
+  position: absolute; }
 
 .nopadding {
   padding: 0 !important;
   margin: 0 !important; }
+
+.p20 {
+  padding: 20px; }
 
 pre.hljs {
   border: 0;
@@ -102,6 +133,7 @@ pre.hljs .hljs-string {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -115,8 +147,8 @@ pre.hljs .hljs-string {
 /* Wells */
 .badge {
   position: absolute;
-  top: 8px;
-  right: 9px;
+  top: 7px;
+  left: 0px;
   color: #FFFFFF;
   font-weight: 700;
   padding: 2px 5px; }
@@ -140,6 +172,7 @@ pre.hljs .hljs-string {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -177,6 +210,7 @@ pre.hljs .hljs-string {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -228,11 +262,15 @@ pre.hljs .hljs-string {
   padding-left: 0;
   padding-right: 0; }
 
+.container-fluid.dashboard {
+  padding-top: 15px; }
+
 /* Colors */
 /* Body, Sections and Headers */
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -268,11 +306,104 @@ pre.hljs .hljs-string {
   overflow: hidden;
   white-space: nowrap; }
 
+.dashboard .col-xs-4 {
+  padding-right: 0px;
+  padding-left: 5px; }
+
+.dashboard .col-xs-4:last-child {
+  padding-right: 5px; }
+
+.dashboard .col-xs-6 {
+  padding-right: 0px;
+  padding-left: 5px; }
+
+.dashboard .col-xs-6:last-child {
+  padding-right: 5px; }
+
+.dashboard .panel {
+  margin-bottom: 5px; }
+
+.dashboard-panel {
+  height: 100px; }
+
+.dashboard-graph-panel {
+  height: 260px;
+  border: 0; }
+
+.dashboard-graph-title {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 30px; }
+
+.dashboard-graph-subtitle {
+  font-weight: 400;
+  font-size: 16px; }
+
+.dashboard-title {
+  font-weight: 400 !important; }
+
+.dashboard-subtitle {
+  display: block;
+  font-size: 13px;
+  text-transform: uppercase; }
+
+.dashboard-number {
+  padding-top: 20px;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.0; }
+
+.dashboard-percentage {
+  opacity: 0.9;
+  font-size: 17px;
+  font-weight: 300; }
+
+.dashboard-percentage:after {
+  content: '%';
+  font-size: 13px; }
+
+.dashboard-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 50px;
+  opacity: 0.3; }
+
+.dashboard-panel-silenced, .dashboard-panel-silenced > a {
+  color: #FFFFFF;
+  background-color: #9DA0A6; }
+
+.dashboard-panel-healthy, .dashboard-panel-healthy > a {
+  color: #FFFFFF;
+  background-color: #43ac6a; }
+
+.dashboard-panel-unknown, .dashboard-panel-unknown > a {
+  color: #FFFFFF;
+  background-color: #2C394A; }
+
+.dashboard-panel-critical, .dashboard-panel-critical > a {
+  color: #FFFFFF;
+  background-color: #EA5443; }
+
+.dashboard-panel-warning, .dashboard-panel-warning > a {
+  color: #FFFFFF;
+  background-color: #F9BA46;
+  border: 0px; }
+
+.dashboard-panel-unsupported, .dashboard-panel-unsupported > a {
+  color: #FFFFFF;
+  background-color: #000000; }
+
+.dashboard .rickshaw_graph {
+  position: absolute;
+  bottom: 5px; }
+
 /* Colors */
 /* Body, Sections and Headers */
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -317,11 +448,20 @@ pre.hljs .hljs-string {
 .show-on-hover:hover > div.dropdown-menu {
   display: block; }
 
+.fa-stack {
+  height: 1.4em;
+  line-height: 1.4em;
+  vertical-align: top; }
+
+.fa-times {
+  padding-right: 5px; }
+
 /* Colors */
 /* Body, Sections and Headers */
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -348,6 +488,7 @@ pre.hljs .hljs-string {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -369,6 +510,7 @@ pre.hljs .hljs-string {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -387,6 +529,9 @@ pre.hljs .hljs-string {
   font-weight: 700;
   font-size: 28px; }
 
+.info .number a {
+  color: inherit; }
+
 .info .title {
   font-weight: 700;
   font-size: 12px;
@@ -398,6 +543,7 @@ pre.hljs .hljs-string {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -418,6 +564,7 @@ pre.hljs .hljs-string {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -449,6 +596,7 @@ li.timestamp .relative-timestamp {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -524,6 +672,7 @@ li.timestamp .relative-timestamp {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -550,6 +699,7 @@ li.timestamp .relative-timestamp {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -595,6 +745,7 @@ li.timestamp .relative-timestamp {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -634,11 +785,16 @@ li.timestamp .relative-timestamp {
   padding-left: 12px;
   padding-right: 12px; }
 
+.navbar .nav .fullname {
+  font-size: 16px;
+  padding-right: 5px; }
+
 /* Colors */
 /* Body, Sections and Headers */
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -722,6 +878,10 @@ li.timestamp .relative-timestamp {
   text-transform: uppercase;
   font-weight: 700; }
 
+.panel .subtitle {
+  display: block;
+  line-height: 1.2; }
+
 .panel-ok {
   color: #ffffff;
   background-color: #6A5E98; }
@@ -757,6 +917,7 @@ li.timestamp .relative-timestamp {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -786,6 +947,22 @@ li.timestamp .relative-timestamp {
   padding: 8px 0;
   font-size: 22px; }
 
+.search-results {
+  color: #4D4D4D;
+  position: absolute;
+  height: auto;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  padding-left: 0;
+  padding-right: 4px !important;
+  padding-top: 7px; }
+
+.search-container {
+  display: inline-block;
+  position: relative;
+  width: 100%; }
+
 .navbar .uchiwa-search .form-control::-webkit-input-placeholder {
   color: white; }
 .navbar .uchiwa-search .form-control:-moz-placeholder {
@@ -810,6 +987,7 @@ li.timestamp .relative-timestamp {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -928,6 +1106,7 @@ li.timestamp .relative-timestamp {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -952,6 +1131,11 @@ li.timestamp .relative-timestamp {
   overflow: hidden;
   white-space: nowrap; }
 
+.table td.source {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap; }
+
 .table td.output {
   text-overflow: ellipsis;
   overflow: hidden;
@@ -962,8 +1146,14 @@ li.timestamp .relative-timestamp {
   overflow: hidden;
   white-space: nowrap; }
 
+.table td.dc {
+  word-break: break-all; }
+
 .table th.col-min {
   width: 4%; }
+
+.table th.col-min-ro {
+  width: 1%; }
 
 .table th.col-gravatar {
   width: 5%; }
@@ -990,6 +1180,7 @@ li.timestamp .relative-timestamp {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */
@@ -1039,6 +1230,7 @@ li.timestamp .relative-timestamp {
 /* Breadcrumb */
 /* Buttons */
 /* Code */
+/* Dashboard */
 /* Dropdown */
 /* Login */
 /* Modal */

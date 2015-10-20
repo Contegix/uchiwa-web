@@ -24,6 +24,9 @@ filterModule.filter('buildEvents', function() {
       return events;
     }
     angular.forEach(events, function(event) {
+      if (angular.isUndefined(event)) {
+        return;
+      }
       if (typeof(event.check) === 'undefined' && typeof(event.client) === 'undefined') {
         event.sourceName = 'unknown';
         return true;
@@ -34,6 +37,32 @@ filterModule.filter('buildEvents', function() {
       event.sourceName = event.check.source || event.client.name;
     });
     return events;
+  };
+});
+
+filterModule.filter('buildEventCount', function() {
+  return function(events) {
+    var eventCount = {};
+    angular.forEach(events, function(event) {
+      if (eventCount[event.check.name] === 'undefined' || !eventCount[event.check.name]) {
+        eventCount[event.check.name] = 0;
+      }
+      eventCount[event.check.name] = eventCount[event.check.name] + 1;
+    });
+    var keys = [];
+    keys = Object.keys(eventCount);
+    var len = keys.length;
+    keys.sort(function(a, b) {
+      return a.toLowerCase().localeCompare(b.toLowerCase());
+    });
+    var eventsCounted = {};
+    for (var i = 0; i < len; i++)
+    {
+      var k = keys[i];
+      eventsCounted[k] = eventCount[k];
+    }
+    eventCount = {};
+    return eventsCounted;
   };
 });
 
@@ -89,13 +118,13 @@ filterModule.filter('filterSubscriptions', function() {
 
 filterModule.filter('getAckClass', function() {
   return function(isAcknowledged) {
-    return (isAcknowledged) ? 'fa-volume-off' : 'fa-volume-up';
+    return (isAcknowledged) ? 'fa-volume-off fa-stack-1x' : 'fa-volume-up';
   };
 });
 
 filterModule.filter('getExpireTimestamp', ['conf', function (conf) {
   return function(stash) {
-    if (isNaN(stash.expire)) {
+    if (angular.isUndefined(stash) || isNaN(stash.expire)) {
       return 'Unknown';
     }
     if (stash.expire === -1) {
@@ -145,12 +174,12 @@ filterModule.filter('hideSilenced', function() {
   };
 });
 
-filterModule.filter('hideClientSilenced', function() {
-  return function(events, hideClientSilenced) {
+filterModule.filter('hideClientsSilenced', function() {
+  return function(events, hideClientsSilenced) {
     if (Object.prototype.toString.call(events) !== '[object Array]') {
       return events;
     }
-    if (events && hideClientSilenced) {
+    if (events && hideClientsSilenced) {
       return events.filter(function (item) {
         return item.client.acknowledged === false;
       });
@@ -199,7 +228,7 @@ filterModule.filter('relativeTimestamp', function() {
   };
 });
 
-filterModule.filter('richOutput', ['$filter', function($filter) {
+filterModule.filter('richOutput', ['$filter', '$sce', '$sanitize', '$interpolate', function($filter, $sce, $sanitize, $interpolate) {
   return function(text) {
     var output = '';
     if(typeof text === 'object') {
@@ -211,7 +240,11 @@ filterModule.filter('richOutput', ['$filter', function($filter) {
       }
     } else if (typeof text === 'number' || typeof text === 'boolean') {
       output = text.toString();
-    } else {
+    } else if (/^iframe:/.test(text)) {
+      var iframeSrc = $sanitize(text.replace(/^iframe:/, ''));
+      output = $sce.trustAsHtml($interpolate('<span class="iframe"><iframe width="100%" src="{{iframeSrc}}"></iframe></span>')({ 'iframeSrc': iframeSrc }));
+    }
+    else {
       var linkified = $filter('linky')(text, '_blank');
       output = $filter('imagey')(linkified);
     }

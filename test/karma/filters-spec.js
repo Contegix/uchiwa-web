@@ -167,7 +167,7 @@ describe('filters', function () {
   describe('getAckClass', function () {
 
     it('should return icon based on acknowledgment', inject(function (getAckClassFilter) {
-      expect(getAckClassFilter(true)).toBe('fa-volume-off');
+      expect(getAckClassFilter(true)).toBe('fa-volume-off fa-stack-1x');
       expect(getAckClassFilter(null)).toBe('fa-volume-up');
     }));
 
@@ -189,9 +189,9 @@ describe('filters', function () {
 
   });
 
-  describe('hideClientSilenced', function () {
+  describe('hideClientssSilenced', function () {
 
-    it('should only hide events from silenced clients when hideClientSilenced is true', inject(function (hideClientSilencedFilter) {
+    it('should only hide events from silenced clients when hideClientsSilenced is true', inject(function (hideClientsSilencedFilter) {
       var events = [
         {id: 'foo', client: {acknowledged: true}},
         {id: 'bar', client: {acknowledged: false}}
@@ -199,8 +199,8 @@ describe('filters', function () {
       var expectedEvents = [
         {id: 'bar', client: {acknowledged: false}}
       ];
-      expect(hideClientSilencedFilter(events, false)).toEqual(events);
-      expect(hideClientSilencedFilter(events, true)).toEqual(expectedEvents);
+      expect(hideClientsSilencedFilter(events, false)).toEqual(events);
+      expect(hideClientsSilencedFilter(events, true)).toEqual(expectedEvents);
     }));
 
   });

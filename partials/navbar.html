@@ -1,4 +1,4 @@
-<nav class="navbar" ng-style="navbarStyle" role="navigation" ng-controller="navbar">
+<nav class="navbar" ng-style="navbarStyle" role="navigation" ng-controller="NavbarController">
   <div class="container-fluid">
     <div class="navbar-header">
       <span class="navbar-brand" href="#"><img src="bower_components/uchiwa-web/img/Contegix_logo.png"></span>
@@ -12,6 +12,20 @@
             <img src="bower_components/uchiwa-web/img/puppet-min.png" alt="Puppet Dashboard"></img>
           </a>
         </li>
+        <li class="dropdown" dropdown ng-if="auth">
+          <a href class="dropdown-toggle" dropdown-toggle>
+            <span class="fullname">{{auth.FullName || auth.Username}}</span>
+            <img class="gravatar" gravatar-src-once="auth.Email" gravatar-size="30">
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a href="#settings"><i class="fa fa-gear"></i> Settings</a>
+            </li>
+            <li>
+              <a href ng-click="logout()"><i class="fa fa-sign-out"></i> Logout</a>
+            </li>
+         </ul>
+        </li>
         <li id="info">
           <a href="#info">
             <span tooltip-placement="bottom" tooltip-trigger tooltip="Info">
@@ -19,24 +33,16 @@
             </span>
           </a>
         </li>
-        <li id="settings">
+        <li id="settings" ng-if="!auth">
           <a href="#settings">
             <span tooltip-placement="bottom" tooltip-trigger tooltip="Settings">
               <i class="fa fa-gear"></i>
             </span>
           </a>
         </li>
-
-        <li id="logout" ng-if="enterprise && config.Uchiwa.Auth === 'sql' && user.isAdmin()">
-          <a href="#" ng-click="logout()">
-            <span tooltip-placement="bottom" tooltip-trigger tooltip="Logout">
-              <i class="fa fa-sign-out"></i>
-            </span>
-          </a>
-        </li>
       </ul>
 
-    </div><!-- /.navbar-collapse -->
-  </div><!-- /.container-fluid -->
+    </div><!--/.navbar-collapse-->
+  </div><!--/.container-fluid-->
   <ng-include src="'partials/collection-search.html'" ng-if="enterprise"></ng-include>
 </nav>

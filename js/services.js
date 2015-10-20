@@ -5,194 +5,164 @@ var serviceModule = angular.module('uchiwa.services', []);
 /**
 * Uchiwa
 */
-serviceModule.service('backendService', ['conf', '$http', '$interval', '$location', '$rootScope', '$timeout',
-  function(conf, $http, $interval, $location, $rootScope, $timeout){
-    var self = this;
+serviceModule.service('backendService', ['audit', 'conf', '$http', '$interval', '$location', '$rootScope',
+  function(audit, conf, $http, $interval, $location, $rootScope){
     this.auth = function () {
       return $http.get('auth');
     };
-    this.createStash = function (payload) {
-      return $http.post('post_stash', payload);
+    this.deleteClient = function (id) {
+      if ($rootScope.enterprise) {
+        audit.log({action: 'delete_client', level: 'default', output: id});
+      }
+      return $http.delete('clients/'+id);
     };
-    this.deleteClient = function (client, dc) {
-      return $http.get('delete_client?id=' + client + '&dc=' + dc );
+    this.deleteEvent = function (id) {
+      return $http.delete('events/'+id);
     };
-    this.deleteStash = function (payload) {
-      return $http.post('delete_stash', payload);
+    this.deleteStash = function (id) {
+      if ($rootScope.enterprise) {
+        audit.log({action: 'delete_stash', level: 'default', output: id});
+      }
+      return $http.delete('stashes/'+id);
+    };
+    this.getAggregate = function(check, dc, issued) {
+      return $http.get('aggregates/'+dc+'/'+check+'/'+issued);
+    };
+    this.getAggregates = function() {
+      return $http.get('aggregates');
+    };
+    this.getChecks = function () {
+      return $http.get('checks');
     };
     this.getClient = function (client, dc) {
-      return $http.get('get_client?id=' + client + '&dc=' + dc );
+      return $http.get('clients/'+dc+'/'+client);
+    };
+    this.getClients = function () {
+      return $http.get('clients');
     };
     this.getConfig = function () {
-      $http.get('get_config')
+      if ($location.path().substring(0, 6) === '/login') {
+        return;
+      }
+      $http.get('config')
         .success(function (data) {
           $rootScope.config = data;
           conf.refresh = data.Uchiwa.Refresh * 1000;
-          $interval(self.update, conf.refresh);
         })
-        .error(function () {
-          $interval(self.update, conf.refresh);
+        .error(function(error) {
+          console.error(JSON.stringify(error));
         });
     };
-    this.getHealth = function () {
-      return $http.get('health/sensu');
+    this.getConfigAuth = function () {
+      return $http.get('config/auth');
     };
-    this.getSensu = function () {
-      return $http.get('get_sensu');
+    this.getDatacenters = function() {
+      $http.get('datacenters')
+        .success(function(data) {
+          if (!angular.isObject(data)) {
+            $rootScope.datacenters = [];
+          }
+          else {
+            $rootScope.datacenters = data;
+          }
+        })
+        .error(function(error) {
+          console.error(JSON.stringify(error));
+        });
+    };
+    this.getEvents = function () {
+      return $http.get('events');
+    };
+    this.getHealth = function() {
+      $http.get('health')
+        .success(function(data) {
+          $rootScope.health = data;
+        })
+        .error(function(error) {
+          console.error(JSON.stringify(error));
+        });
+    };
+    this.getMetrics = function() {
+      $http.get('metrics')
+        .success(function(data) {
+          $rootScope.metrics = data;
+        })
+        .error(function(error) {
+          $rootScope.metrics = {aggregates: {total: 0}, checks: {total: 0}, clients: {critical: 0, total: 0, unknown: 0, warning: 0}, datacenters: {total: 0}, events: {critical: 0, total: 0, unknown: 0, warning: 0}, stashes: {total: 0}};
+          console.error(JSON.stringify(error));
+        });
+    };
+    this.getStashes = function () {
+      return $http.get('stashes');
+    };
+    this.getSubscriptions = function () {
+      return $http.get('subscriptions');
     };
     this.login = function (payload) {
       return $http.post('login', payload);
     };
-    this.resolveEvent = function (payload) {
-      return $http.post('post_event', payload);
-    };
-    this.update = function () {
-      if ($location.path() === '/login') {
-        return;
-      }
-      if ($rootScope.skipRefresh) {
-        $rootScope.skipRefresh = false;
-        return;
-      }
-      self.getHealth()
-      .success(function (data) {
-        $rootScope.health = data;
-      });
-      self.getSensu()
-      .success(function (data) {
-        angular.forEach(data, function(value, key) { // initialize null elements
-          if (!value || value === null) {
-            data[key] = [];
-          }
-        });
-
-        $rootScope.checks = data.Checks;
-        $rootScope.dc = data.Dc;
-        $rootScope.aggregates = data.Aggregates;
-
-        $rootScope.clients = _.map(data.Clients, function(client) {
-          var existingClient = _.findWhere($rootScope.clients, {name: client.name, dc: client.dc});
-          if (existingClient !== undefined) {
-            client = angular.extend(existingClient, client);
-          }
-          return existingClient || client;
-        });
-
-        $rootScope.events = _.map(data.Events, function(event) {
-          if (event.client.name === null && event.check.name === null) {
-            return false;
-          }
-          event._id = event.dc + '/' + event.client.name + '/' + event.check.name;
-          var existingEvent = _.findWhere($rootScope.events, {_id: event._id});
-          if (existingEvent !== undefined) {
-            event = angular.extend(existingEvent, event);
-          }
-          return existingEvent || event;
-        });
-
-        $rootScope.stashes = data.Stashes;
-        $rootScope.subscriptions = data.Subscriptions;
-
-        $timeout(function() {
-          $rootScope.$broadcast('sensu');
-        }, 100);
-
-      })
-      .error(function (error) {
-        $rootScope.$emit('notification', 'error', 'Could not fetch Sensu data. Is Uchiwa running?');
-        console.error(error);
-      });
+    this.postStash = function (payload) {
+      return $http.post('stashes', payload);
     };
   }
 ]);
 
 /**
-* Clients
+* Clients Services
 */
 serviceModule.service('clientsService', ['$location', '$rootScope', 'backendService', function ($location, $rootScope, backendService) {
-  this.getCheck = function (id, history) {
+  this.searchCheckHistory = function (name, history) {
     return history.filter(function (item) {
-      return item.check === id;
+      return item.check === name;
     })[0];
   };
-  this.getEvent = function (client, check, events) {
-    if (!client || !check || events.constructor.toString().indexOf('Array') === -1) { return null; }
-    return events.filter(function (item) {
-      return (item.client.name === client && item.check.name === check);
-    })[0];
-  };
-  this.resolveEvent = function (dc, client, check) {
-    if (!angular.isObject(client) || !angular.isObject(check)) {
-      $rootScope.$emit('notification', 'error', 'Could not resolve this event. Try to refresh the page.');
-      console.error('Received:\nclient='+ JSON.stringify(client) + '\ncheck=' + JSON.stringify(check));
-      return false;
-    }
-
-    var checkName = check.name || check.check;
-    var payload = {dc: dc, payload: {client: client.name, check: checkName}};
-
-    backendService.resolveEvent(payload)
+  this.resolveEvent = function (id) {
+    return backendService.deleteEvent(id)
       .success(function () {
         $rootScope.$emit('notification', 'success', 'The event has been resolved.');
-        if ($location.url() !== '/events') {
-          $location.url(encodeURI('/client/' + dc + '/' + client.name));
-        } else {
-          var _id = dc + '/' + client.name + '/' + checkName;
-          var event = _.findWhere($rootScope.events, {_id: _id});
-          var eventPosition = $rootScope.events.indexOf(event);
-          $rootScope.events.splice(eventPosition, 1);
-        }
       })
       .error(function (error) {
-        $rootScope.$emit('notification', 'error', 'The event was not resolved. ' + error);
+        $rootScope.$emit('notification', 'error', 'The event "'+id+'" was not resolved.');
+        console.error(error);
       });
   };
-  this.deleteClient = function (dc, client) {
-    backendService.deleteClient(client, dc)
+  this.deleteClient = function (id) {
+    return backendService.deleteClient(id)
       .success(function () {
         $rootScope.$emit('notification', 'success', 'The client has been deleted.');
-        $location.url('/clients');
-        return true;
       })
       .error(function (error) {
-        $rootScope.$emit('notification', 'error', 'Could not delete the client '+ client +'. Is Sensu API running on '+ dc +'?');
+        $rootScope.$emit('notification', 'error', 'Could not delete the client '+ id);
         console.error(error);
       });
   };
 }]);
 
+/**
+* Filter
+*/
+serviceModule.service('filterService', function () {
+  this.comparator = function(actual, expected) {
+    if (angular.isUndefined(expected) || expected === '') {
+      return true;
+    }
+    return angular.equals(actual, expected);
+  };
+});
 
 /**
 * Navbar
 */
 serviceModule.service('navbarServices', ['$rootScope', function ($rootScope) {
-  // Badges count
-  this.countStatuses = function (item, getStatusCode) {
-    var collection = $rootScope[item];
-    if (!_.isObject($rootScope.navbar)) {
-      $rootScope.navbar = {};
-    }
-    $rootScope.navbar[item] = { critical: 0, warning: 0, unknown: 0, style: '' };
-
-    $rootScope.navbar[item].critical += collection.filter(function (item) {
-      return getStatusCode(item) === 2;
-    }).length;
-    $rootScope.navbar[item].warning += collection.filter(function (item) {
-      return getStatusCode(item) === 1;
-    }).length;
-    $rootScope.navbar[item].unknown += collection.filter(function (item) {
-      return getStatusCode(item) > 2;
-    }).length;
-
-    $rootScope.navbar[item].style = $rootScope.navbar[item].critical > 0 ? 'critical' : $rootScope.navbar[item].warning > 0 ? 'warning' : $rootScope.navbar[item].unknown > 0 ? 'unknown' : 'success';
-  };
   this.health = function () {
     var alerts = [];
-    angular.forEach($rootScope.health, function(value, key) {
-      if (value.output !== 'ok') {
-        alerts.push('Datacenter <strong>' + key + '</strong> returned: <em>' + value.output + '</em>');
-      }
-    });
+    if (angular.isObject($rootScope.health)) {
+      angular.forEach($rootScope.health.sensu, function(value, key) {
+        if (value.output !== 'ok') {
+          alerts.push('Datacenter <strong>' + key + '</strong> returned: <em>' + value.output + '</em>');
+        }
+      });
+    }
     $rootScope.alerts = alerts;
   };
 }]);
@@ -205,8 +175,10 @@ serviceModule.service('routingService', ['$location', function ($location) {
     'limit': 50
   };
   this.go = function (path) {
-    path = encodeURI(path);
-    $location.url(path);
+    if (window.getSelection().toString() === '') {
+      path = encodeURI(path);
+      $location.url(path);
+    }
   };
   this.deleteEmptyParameter = function (routeParams, key) {
     if (routeParams[key] === '') {
@@ -249,187 +221,240 @@ serviceModule.service('routingService', ['$location', function ($location) {
 /**
 * Stashes
 */
-serviceModule.service('stashesService', ['$rootScope', '$modal', 'backendService', function ($rootScope, $modal, backendService) {
-  this.construct = function(item) {
-    var check;
-    var client;
-    var path = [];
-
-    if (angular.isObject(item) && angular.isDefined(item.client) && angular.isDefined(item.check)) { // event
-      if (!angular.isObject(item.check)) {
-        check = item.check;
-      }
-      else {
-        check = {check: item.check};
-      }
-      if (angular.isObject(item.check)) {
-        client = item.client;
-      }
-      else {
-        client = {name: item.client};
-      }
-    }
-    else if (angular.isObject(item) && angular.isDefined(item.name)) { // client
-      client = item;
-      check = null;
-    }
-    else { // unknown
-      $rootScope.$emit('notification', 'error', 'Cannot handle this stash. Try to refresh the page.');
-      return false;
-    }
-
-    path.push(client.name);
-
-    var checkName = '';
-    if (check) {
-      if (angular.isObject(check.check)) {
-        checkName = check.check.name;
-      } else {
-        checkName = check;
-      }
-    }
-    path.push(checkName);
-
-    return path;
-  };
-  this.stash = function (e, i) {
-    var items = _.isArray(i) ? i : new Array(i);
-    var event = e || window.event;
-    event.stopPropagation();
-
-    if (items.length === 0) {
-      $rootScope.$emit('notification', 'error', 'No items selected');
-    } else {
-      var modalInstance = $modal.open({ // jshint ignore:line
-        templateUrl: $rootScope.partialsPath + '/stash-modal.html',
-        controller: 'StashModalCtrl',
-        resolve: {
-          items: function () {
-            return items;
-          }
-        }
-      });
-    }
-  };
-  this.submit = function (element, item) {
-    var isAcknowledged = element.acknowledged;
-    var path = this.construct(element);
-    if (path[1] !== '') {
-      path[1] = '/' + path[1];
-    }
-    if (angular.isUndefined(item.reason)) {
-      item.reason = '';
-    }
-    path = 'silence/' + path[0] + path[1];
-    var data = {dc: element.dc, payload: {}};
-
-    $rootScope.skipRefresh = true;
-    if (isAcknowledged) {
-      data.payload = {path: path};
-      backendService.deleteStash(data)
+serviceModule.service('stashesService', ['backendService', 'conf', '$filter', '$modal', '$rootScope',
+  function (backendService, conf, $filter, $modal, $rootScope) {
+    this.deleteStash = function (id) {
+      return backendService.deleteStash(id)
         .success(function () {
           $rootScope.$emit('notification', 'success', 'The stash has been deleted.');
-          element.acknowledged = !element.acknowledged;
-          return true;
         })
         .error(function (error) {
-          $rootScope.$emit('notification', 'error', 'The stash was not created. ' + error);
-          return false;
+          $rootScope.$emit('notification', 'error', 'The stash was not created.');
+          console.error(error);
         });
-    }
-    else {
-      data.payload = {path: path, content: {'reason': item.reason, 'source': 'uchiwa'}};
-      if (item.expiration && item.expiration !== -1){
-        data.payload.expire = item.expiration;
+    };
+    this.find = function(stashes, item) {
+      var path = this.getPath(item);
+      return _.findWhere(stashes, {
+        dc: item.dc,
+        path: path
+      });
+    };
+    this.getExpirationFromDateRange = function(stash) {
+      if (angular.isUndefined(stash) || !angular.isObject(stash) || angular.isUndefined(stash.content) || !angular.isObject(stash.content)) {
+        return stash;
       }
-      data.payload.content.timestamp = Math.floor(new Date()/1000);
-      if (item.content && item.content.timestamp) {
-        data.payload.content.timestamp = item.content.timestamp;
+
+      var now = moment();
+      var start = now.format(conf.date);
+      var end = moment(stash.content.to);
+      var amDifference = $filter('amDifference');
+      var diff = amDifference(end, start, 'seconds');
+
+      stash.content.timestamp = now.unix();
+      stash.expiration = diff;
+      return stash;
+    };
+    this.getPath = function(item) {
+      var path = ['silence'];
+      var hasCheck = true;
+
+      // get client name
+      if (angular.isUndefined(item) || !angular.isObject(item)) {
+        $rootScope.$emit('notification', 'error', 'Cannot handle this stash. Try to refresh the page.');
+        return false;
       }
       else {
-        data.payload.content.timestamp = Math.floor(new Date()/1000);
-      }
-      backendService.createStash(data)
-        .success(function () {
-          $rootScope.$emit('notification', 'success', 'The stash has been created.');
-          element.acknowledged = !element.acknowledged;
-          return true;
-        })
-        .error(function (error) {
-          $rootScope.$emit('notification', 'error', 'The stash was not created. ' + error);
-          return false;
-        });
-    }
-  };
-  this.deleteStash = function (stash) {
-    $rootScope.skipRefresh = true;
-    var data = {dc: stash.dc, payload: {path: stash.path}};
-    backendService.deleteStash(data)
-      .success(function () {
-        $rootScope.$emit('notification', 'success', 'The stash has been deleted.');
-        for (var i=0; $rootScope.stashes; i++) {
-          if ($rootScope.stashes[i].path === stash.path) {
-            $rootScope.stashes.splice(i, 1);
-            break;
+        if (angular.isUndefined(item.client)) {
+          path.push(item.name);
+          hasCheck = false;
+        }
+        else {
+          if (angular.isObject(item.client)) {
+            path.push(item.client.name);
+          }
+          else {
+            path.push(item.client);
           }
         }
-        return true;
-      })
-      .error(function (error) {
-        $rootScope.$emit('notification', 'error', 'The stash was not created. ' + error);
-        return false;
-      });
-  };
+      }
+
+      // get check name
+      if (hasCheck && angular.isDefined(item.check)) {
+        if (angular.isObject(item.check)) {
+          path.push(item.check.name);
+        }
+        else {
+          path.push(item.check);
+        }
+      }
+
+      return path.join('/');
+    };
+    this.stash = function (e, i) {
+      var items = _.isArray(i) ? i : new Array(i);
+      var event = e || window.event;
+      if (angular.isDefined(event)) {
+        event.stopPropagation();
+      }
+
+      if (items.length === 0) {
+        $rootScope.$emit('notification', 'error', 'No items selected');
+      } else {
+        var modalInstance = $modal.open({ // jshint ignore:line
+          templateUrl: $rootScope.partialsPath + '/stash-modal.html',
+          controller: 'StashModalController',
+          resolve: {
+            items: function () {
+              return items;
+            }
+          }
+        });
+      }
+    };
+    this.submit = function (element, item) {
+      var dc = element.dc;
+      var isAcknowledged = element.acknowledged;
+      var path = this.getPath(element);
+
+      if (angular.isUndefined(item.reason)) {
+        item.reason = '';
+      }
+
+      if (isAcknowledged) {
+        return backendService.deleteStash(dc+'/'+path)
+          .success(function () {
+            $rootScope.skipOneRefresh = true;
+            $rootScope.$emit('notification', 'success', 'The stash has been deleted.');
+            element.acknowledged = !element.acknowledged;
+          })
+          .error(function (error) {
+            $rootScope.$emit('notification', 'error', 'The stash was not created. ' + error);
+          });
+      }
+      else {
+        var payload = {content: {'reason': item.reason, 'source': 'uchiwa'}, dc: dc, path: path};
+
+        // add expire attribute
+        if (item.expiration && item.expiration !== -1){
+          payload.expire = item.expiration;
+        }
+
+        // add timestamp attribute
+        if (angular.isUndefined(payload.content.timestamp)) {
+          payload.content.timestamp = Math.floor(new Date()/1000);
+        }
+        else {
+          payload.content.timestamp = item.content.timestamp;
+        }
+
+        // post payload
+        return backendService.postStash(payload)
+          .success(function () {
+            $rootScope.skipOneRefresh = true;
+            $rootScope.$emit('notification', 'success', 'The stash has been created.');
+            element.acknowledged = !element.acknowledged;
+          })
+          .error(function (error) {
+            $rootScope.$emit('notification', 'error', 'The stash was not created. ' + error);
+          });
+      }
+    };
 }]);
 
 /**
 * Helpers service
 */
-serviceModule.service('helperService', function() {
+serviceModule.service('helperService', ['$filter', '$q', '$rootScope',
+function($filter, $q, $rootScope) {
+  this.deleteItems = function(fn, filtered, selected) {
+    var promises = [];
+    angular.forEach(selected.ids, function(value, key) {
+      if (value) {
+        var deffered = $q.defer();
+        selected.ids[key] = false;
+        fn(key).then(function() {
+          filtered = $filter('filter')(filtered, {_id: '!'+key});
+          deffered.resolve(key);
+        }, function() {
+          deffered.reject();
+        });
+        promises.push(deffered.promise);
+      }
+    });
+    selected.all = false;
+    $rootScope.skipOneRefresh = true;
+    return $q.all(promises).then(function() {
+      return filtered;
+    });
+  };
   // Stop event propagation if an A tag is clicked
   this.openLink = function($event) {
     if($event.srcElement.tagName === 'A'){
       $event.stopPropagation();
     }
   };
-  this.selectedItems = function(items) {
-    return _.filter(items, function(item) {
-      return item.selected === true;
+  this.selectAll = function(filtered, selected) {
+    angular.forEach(filtered, function(value) {
+      selected.ids[value._id] = selected.all;
     });
   };
-  this.unselectItems = function(items) {
-    _.each(items, function(item) {
-      if (item.selected === true) {
-        item.selected = false;
+  this.silenceItems = function(fn, filtered, selected) {
+    var itemsToSilence = [];
+    angular.forEach(selected.ids, function(value, key) {
+      if (value) {
+        var found = $filter('filter')(filtered, {_id: key});
+        if (found.length) {
+          itemsToSilence.push(found[0]);
+          selected.ids[key] = false;
+        }
+      }
+    });
+    fn(null, itemsToSilence);
+    selected.all = false;
+  };
+  // updateSelected updates the selected array to remove any filtered items
+  this.updateSelected = function(newValues, oldValues, filtered, selected) {
+    // Check if we need to exclude any items
+    var excludeItems = false;
+    for (var i = 0; i < newValues.length; i++) {
+      if ((newValues[i] !== '' && newValues[i]) && oldValues[i] !== newValues[i]) {
+        excludeItems = true;
+        break;
+      }
+    }
+    if (!excludeItems) {
+      return;
+    }
+    angular.forEach(selected.ids, function(value, key) {
+      if (value) {
+        var found = $filter('filter')(filtered, {_id: key});
+        if (!found.length) {
+          selected.ids[key] = false;
+        }
       }
     });
   };
-});
+}]);
 
 /**
 * User service
 */
 serviceModule.service('userService', ['$cookieStore', '$location', '$rootScope',
 function ($cookieStore, $location, $rootScope) {
-  var getRole = function () {
-    if ($rootScope.auth) {
-      return $rootScope.auth.Role;
-    } else {
-      return 'operator';
+  this.getUsername = function () {
+    if ($rootScope.auth && $rootScope.username) {
+      return $rootScope.auth.username;
     }
+    return '';
   };
-  this.canPost = function () {
-    var role = getRole();
-    if (role === 'operator' || role === 'admin') {
-      return true;
+  this.isReadOnly = function () {
+    if ($rootScope.auth && $rootScope.auth.Role && angular.isDefined($rootScope.auth.Role.Readonly)) {
+      return $rootScope.auth.Role.Readonly;
     }
     return false;
   };
   this.isAdmin = function () {
-    var role = getRole();
-    if (role === 'admin') {
-      return true;
-    }
     return false;
   };
   this.logout = function () {

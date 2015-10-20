@@ -3,14 +3,114 @@
 var controllerModule = angular.module('uchiwa.controllers', []);
 
 /**
+* Aggregate
+*/
+controllerModule.controller('AggregateController', ['backendService', '$http', '$rootScope', '$scope', '$routeParams', 'routingService', 'Sensu', 'titleFactory',
+  function (backendService, $http, $rootScope, $scope, $routeParams, routingService, Sensu, titleFactory) {
+    $scope.pageHeaderText = 'Aggregates';
+    titleFactory.set($scope.pageHeaderText);
+
+    // Routing
+    $scope.dc = decodeURI($routeParams.dc);
+    $scope.check = decodeURI($routeParams.check);
+
+    // Get aggregates
+    $scope.aggregates = [];
+    var timer = Sensu.updateAggregates();
+    $scope.$watch(function () { return Sensu.getAggregates(); }, function (data) {
+      $scope.aggregates = _.find(data, function(aggregate) { // jshint ignore:line
+        return $scope.check === aggregate.check && $scope.dc === aggregate.dc;
+      });
+    });
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
+    });
+
+    // Get aggregate
+    $scope.aggregate = null;
+    var getAggregate = function() {
+      $scope.issued = decodeURI($routeParams.issued);
+      if (isNaN($scope.issued)) {
+        $scope.aggregate = null;
+        return;
+      }
+      backendService.getAggregate($scope.check, $scope.dc, $scope.issued)
+        .success(function(data) {
+          $scope.aggregate = data;
+        })
+        .error(function(error) {
+          $scope.aggregate = null;
+          console.error(error);
+        });
+    };
+    $scope.$on('$routeChangeSuccess', function(){
+      getAggregate();
+    });
+    $scope.$on('$routeUpdate', function(){
+      getAggregate();
+    });
+
+    // Services
+    $scope.go = routingService.go;
+    $scope.permalink = routingService.permalink;
+  }
+]);
+
+/**
+* Aggregates
+*/
+controllerModule.controller('AggregatesController', ['filterService', '$routeParams', 'routingService', '$scope', 'Sensu', 'titleFactory',
+  function (filterService, $routeParams, routingService, $scope, Sensu, titleFactory) {
+    $scope.pageHeaderText = 'Aggregates';
+    titleFactory.set($scope.pageHeaderText);
+
+    $scope.predicate = 'check';
+    $scope.reverse = false;
+
+    // Get aggregates
+    $scope.aggregates = [];
+    var timer = Sensu.updateAggregates();
+    $scope.$watch(function () { return Sensu.getAggregates(); }, function (data) {
+      $scope.aggregates = data;
+    });
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
+    });
+
+    // Routing
+    $scope.filters = {};
+    routingService.initFilters($routeParams, $scope.filters, ['dc', 'limit', 'q']);
+    $scope.$on('$locationChangeSuccess', function(){
+      routingService.updateFilters($routeParams, $scope.filters);
+    });
+
+    // Services
+    $scope.filterComparator = filterService.comparator;
+    $scope.go = routingService.go;
+    $scope.permalink = routingService.permalink;
+  }
+]);
+
+/**
 * Checks
 */
-controllerModule.controller('checks', ['titleFactory', '$routeParams', 'routingService', '$scope',
-  function (titleFactory, $routeParams, routingService, $scope) {
+controllerModule.controller('ChecksController', ['filterService', '$routeParams', 'routingService', '$scope', 'Sensu', 'titleFactory',
+  function (filterService, $routeParams, routingService, $scope, Sensu, titleFactory) {
     $scope.pageHeaderText = 'Checks';
     titleFactory.set($scope.pageHeaderText);
 
     $scope.predicate = 'name';
+    $scope.reverse = false;
+
+    // Get checks
+    $scope.checks = [];
+    var timer = Sensu.updateChecks();
+    $scope.$watch(function () { return Sensu.getChecks(); }, function (data) {
+      $scope.checks = data;
+    });
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
+    });
 
     // Helpers
     $scope.subscribersSummary = function(subscribers){
@@ -25,84 +125,97 @@ controllerModule.controller('checks', ['titleFactory', '$routeParams', 'routingS
     });
 
     // Services
+    $scope.filterComparator = filterService.comparator;
     $scope.permalink = routingService.permalink;
-
   }
 ]);
 
 /**
 * Client
 */
-controllerModule.controller('client', ['backendService', 'clientsService', 'conf', 'notification', 'titleFactory', '$routeParams', 'routingService', '$scope','stashesService', 'userService',
-  function (backendService, clientsService, conf, notification, titleFactory, $routeParams, routingService, $scope, stashesService, userService) {
-
+controllerModule.controller('ClientController', ['backendService', 'clientsService', 'conf', '$filter', 'notification', 'titleFactory', '$routeParams', 'routingService', '$scope', 'Sensu', 'stashesService', 'userService',
+  function (backendService, clientsService, conf, $filter, notification, titleFactory, $routeParams, routingService, $scope, Sensu, stashesService, userService) {
     $scope.predicate = '-last_status';
-    $scope.missingClient = false;
-
-    // Retrieve client
-    $scope.clientId = decodeURI($routeParams.clientId);
-    $scope.dcId = decodeURI($routeParams.dcId);
-    $scope.pull = function() {
-      backendService.getClient($scope.clientId, $scope.dcId)
-        .success(function (data) {
-          $scope.$emit('client', data);
-        })
-        .error(function (error) {
-          // Stop the pulling interval and set scope to display an error message
-          clearTimeout(timer);
-          $scope.missingClient = true;
-          console.error('Error: '+ JSON.stringify(error));
-        });
-    };
-
-    $scope.pull();
-    var timer = setInterval($scope.pull, conf.refresh);
-
-    $scope.$on('client', function (event, data) {
-      $scope.client = data;
-      $scope.pageHeaderText = $scope.client.name;
-
-      // Retrieve check & event
-      $scope.requestedCheck = decodeURI($routeParams.check);
-      $scope.selectedCheck = getCheck($scope.requestedCheck, $scope.client.history);
-      $scope.selectedEvent = getEvent($scope.client.name, $scope.requestedCheck, $scope.events);
-
-      // Set page titleFactory
-      if(angular.isDefined($scope.selectedCheck)) {
-        titleFactory.set($scope.requestedCheck + ' - ' + $scope.client.name);
-      }
-      else {
-        titleFactory.set($scope.client.name);
-      }
-    });
+    $scope.reverse = false;
 
     // Routing
-    $scope.$on('$routeUpdate', function(){
-      // Retrieve check & event
-      $scope.requestedCheck = decodeURI($routeParams.check);
-      $scope.selectedCheck = getCheck($scope.requestedCheck, $scope.client.history);
-      $scope.selectedEvent = getEvent($scope.client.name, $scope.requestedCheck, $scope.events);
+    $scope.clientName = decodeURI($routeParams.client);
+    $scope.dc = decodeURI($routeParams.dc);
 
-      if(angular.isDefined($scope.selectedCheck)) {
-        titleFactory.set($scope.requestedCheck + ' - ' + $scope.client.name);
-      }
-      else {
-        titleFactory.set($scope.client.name);
-      }
+    // Get client
+    $scope.client = null;
+    var clientTimer = Sensu.updateClient($scope.clientName, $scope.dc);
+    $scope.$watch(function () { return Sensu.getClient(); }, function (data) {
+      $scope.client = data;
+      getCheck();
+    });
+
+    // Get events
+    var events = [];
+    var eventsTimer = Sensu.updateEvents();
+    $scope.$watch(function () { return Sensu.getEvents(); }, function (data) {
+      events = data;
     });
 
     $scope.$on('$destroy', function() {
-      clearInterval(timer);
+      Sensu.stop(clientTimer);
+      Sensu.stop(eventsTimer);
     });
 
-    // Sanitize - only display useful information 'acknowledged', 'dc', 'events', 'eventsSummary', 'history', 'status', 'timestamp'
-    /* jshint ignore:start */
-    var clientWhitelist = [ 'acknowledged', 'dc', 'events', 'eventsSummary', 'history', 'output', 'status', 'timestamp' ];
-    var checkWhitelist = [ 'dc', 'hasSubscribers', 'name'];
-    $scope.sanitizeObject = function(type, key){
-      return eval(type + 'Whitelist').indexOf(key) === -1;
+    // Get check
+    $scope.check = null;
+    var checkName = null;
+    // return the events or the client's history
+    var getCheck = function() {
+      if (!$scope.client || !$scope.client.name) {
+        return;
+      }
+
+      if (angular.isDefined($routeParams.check)) {
+        checkName = $routeParams.check;
+        var check = searchCheckHistory(checkName, $scope.client.history);
+        if (!check) {
+          return;
+        }
+
+        if (angular.isDefined(check.last_result)) { // jshint ignore:line
+          check.last_result.history = check.history; // jshint ignore:line
+        }
+
+        // apply filters
+        var images = [];
+        angular.forEach(check.last_result, function(value, key) { // jshint ignore:line
+          value = $filter('getTimestamp')(value);
+          value = $filter('richOutput')(value);
+
+          if (/<img src=/.test(value)) {
+            var obj = {};
+            obj.key = key;
+            obj.value = value;
+            images.push(obj);
+            delete check.last_result[key]; // jshint ignore:line
+          } else {
+            check.last_result[key] = value; // jshint ignore:line
+          }
+        });
+        $scope.images = images;
+
+        $scope.check = check;
+        titleFactory.set(check.check + ' - ' + $scope.client.name);
+      }
+      else {
+        $scope.check = null;
+        $scope.images = null;
+        checkName = null;
+        titleFactory.set($scope.client.name);
+      }
     };
-    /* jshint ignore:end */
+    $scope.$on('$routeChangeSuccess', function(){
+      getCheck();
+    });
+    $scope.$on('$routeUpdate', function(){
+      getCheck();
+    });
 
     // Services
     $scope.deleteClient = clientsService.deleteClient;
@@ -110,102 +223,162 @@ controllerModule.controller('client', ['backendService', 'clientsService', 'conf
     $scope.permalink = routingService.permalink;
     $scope.stash = stashesService.stash;
     $scope.user = userService;
-    var getCheck = clientsService.getCheck;
-    var getEvent = clientsService.getEvent;
+    var searchCheckHistory = clientsService.searchCheckHistory;
   }
 ]);
 
 /**
 * Clients
 */
-controllerModule.controller('clients', ['clientsService', '$filter', 'helperService', '$rootScope', '$routeParams', 'routingService', '$scope', 'stashesService', 'titleFactory', 'userService',
-  function (clientsService, $filter, helperService, $rootScope, $routeParams, routingService, $scope, stashesService, titleFactory, userService) {
+controllerModule.controller('ClientsController', ['clientsService', '$filter', 'filterService', 'helperService', '$rootScope', '$routeParams', 'routingService', '$scope', 'Sensu', 'stashesService', 'titleFactory', 'userService',
+  function (clientsService, $filter, filterService, helperService, $rootScope, $routeParams, routingService, $scope, Sensu, stashesService, titleFactory, userService) {
     $scope.pageHeaderText = 'Clients';
     titleFactory.set($scope.pageHeaderText);
 
     $scope.predicate = ['-status', 'name'];
+    $scope.reverse = false;
+    $scope.selected = {all: false, ids: {}};
+    $scope.statuses = {0: 'Healthy', 1: 'Warning', 2: 'Critical', 3: 'Unknown'};
+
+    // Get clients
+    $scope.clients = [];
+    $scope.filtered = [];
+    var timer = Sensu.updateClients();
+    $scope.$watch(function () { return Sensu.getClients(); }, function (data) {
+      $scope.clients = data;
+      updateFilters();
+    });
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
+    });
+
+    // Get subscriptions
+    Sensu.updateSubscriptions();
+    $scope.$watch(function () { return Sensu.getSubscriptions(); }, function (data) {
+      if (angular.isObject(data)) {
+        $scope.subscriptions = data;
+      }
+    });
+
+    // Filters
+    $scope.$watchGroup(['filters.q', 'filters.dc', 'filters.subscription', 'filters.status'], function(newValues, oldValues) {
+      updateFilters();
+      helperService.updateSelected(newValues, oldValues, $scope.filtered, $scope.selected);
+    });
 
     // Routing
     $scope.filters = {};
-    routingService.initFilters($routeParams, $scope.filters, ['dc', 'subscription', 'limit', 'q']);
+    routingService.initFilters($routeParams, $scope.filters, ['dc', 'subscription', 'limit', 'q', 'status']);
     $scope.$on('$locationChangeSuccess', function(){
       routingService.updateFilters($routeParams, $scope.filters);
     });
 
     // Services
-    $scope.deleteClient = clientsService.deleteClient;
+    $scope.filterComparator = filterService.comparator;
     $scope.go = routingService.go;
+    $scope.openLink = helperService.openLink;
     $scope.permalink = routingService.permalink;
+    $scope.selectAll = helperService.selectAll;
     $scope.stash = stashesService.stash;
     $scope.user = userService;
-
-    $scope.selectClients = function(selectModel) {
-      var filteredClients = $filter('filter')($rootScope.clients, $scope.filters.q);
-      filteredClients = $filter('filter')(filteredClients, {dc: $scope.filters.dc});
-      filteredClients = $filter('hideSilenced')(filteredClients, $scope.filters.silenced);
-      _.each(filteredClients, function(client) {
-        client.selected = selectModel.selected;
+    $scope.deleteClients = function() {
+      helperService.deleteItems(clientsService.deleteClient, $scope.filtered, $scope.selected).then(function(filtered){
+        $scope.filtered = filtered;
       });
     };
-
-    $scope.deleteClients = function(clients) {
-      var selectedClients = helperService.selectedItems(clients);
-      _.each(selectedClients, function(client) {
-        $scope.deleteClient(client.dc, client.name);
-      });
+    $scope.silenceClients = function() {
+      helperService.silenceItems(stashesService.stash, $scope.filtered, $scope.selected);
     };
 
-    $scope.silenceClients = function($event, clients) {
-      var selectedClients = helperService.selectedItems(clients);
-      $scope.stash($event, selectedClients);
+    var updateFilters = function() {
+      var filtered = $filter('filter')($scope.clients, {dc: $scope.filters.dc}, $scope.filterComparator);
+      filtered = $filter('filter')(filtered, {status: $scope.filters.status});
+      filtered = $filter('filterSubscriptions')(filtered, $scope.filters.subscription);
+      filtered = $filter('filter')(filtered, $scope.filters.q);
+      filtered = $filter('collection')(filtered, 'clients');
+      $scope.filtered = filtered;
     };
+  }
+]);
 
-    $scope.$watch('filters.q', function(newVal) {
-      var matched = $filter('filter')($rootScope.clients, '!'+newVal);
-      _.each(matched, function(match) {
-        match.selected = false;
-      });
-    });
-
-    $scope.$watch('filters.dc', function(newVal) {
-      var matched = $filter('filter')($rootScope.clients, {dc: '!'+newVal});
-      _.each(matched, function(match) {
-        match.selected = false;
-      });
-    });
-
-    $scope.$watch('filters.silenced', function() {
-      var matched = $filter('filter')($rootScope.clients, {acknowledged: true});
-      _.each(matched, function(match) {
-        match.selected = false;
-      });
-    });
+/**
+* Datacenters
+*/
+controllerModule.controller('DatacentersController', ['$scope', 'titleFactory',
+  function ($scope, titleFactory) {
+    $scope.pageHeaderText = 'Datacenters';
+    titleFactory.set($scope.pageHeaderText);
   }
 ]);
 
 /**
 * Events
 */
-controllerModule.controller('events', ['clientsService', 'conf', '$cookieStore', '$filter', 'helperService', '$rootScope', '$routeParams','routingService', '$scope', 'stashesService', 'titleFactory', 'userService',
-  function (clientsService, conf, $cookieStore, $filter, helperService, $rootScope, $routeParams, routingService, $scope, stashesService, titleFactory, userService) {
+controllerModule.controller('EventsController', ['clientsService', 'conf', '$cookieStore', '$filter', 'filterService', 'helperService', '$rootScope', '$routeParams','routingService', '$scope', 'Sensu', 'stashesService', 'titleFactory', 'userService',
+  function (clientsService, conf, $cookieStore, $filter, filterService, helperService, $rootScope, $routeParams, routingService, $scope, Sensu, stashesService, titleFactory, userService) {
     $scope.pageHeaderText = 'Events';
     titleFactory.set($scope.pageHeaderText);
 
-    $scope.predicate = '-check.status';
     $scope.filters = {};
+    $scope.predicate = ['-check.status', '-check.issued'];
+    $scope.reverse = false;
+    $scope.selected = {all: false, ids: {}};
+    $scope.statuses = {1: 'Warning', 2: 'Critical', 3: 'Unknown'};
+
+    // Get events
+    $scope.events = [];
+    $scope.filtered = [];
+    var timer = Sensu.updateEvents();
+    $scope.$watch(function () { return Sensu.getEvents(); }, function (data) {
+      if (angular.isObject(data)) {
+        $scope.events = data;
+        updateFilters();
+      }
+    });
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
+    });
+
+    // Filters
+    $scope.$watchGroup(['filters.q', 'filters.dc', 'filters.check' , 'filters.status' , 'filters.silenced' , 'filters.clientsSilenced' , 'filters.occurrences'], function(newValues, oldValues) {
+      updateFilters();
+      helperService.updateSelected(newValues, oldValues, $scope.filtered, $scope.selected);
+    });
 
     // Routing
-    routingService.initFilters($routeParams, $scope.filters, ['dc', 'limit', 'q']);
+    routingService.initFilters($routeParams, $scope.filters, ['dc', 'check', 'limit', 'q', 'status']);
     $scope.$on('$locationChangeSuccess', function(){
       routingService.updateFilters($routeParams, $scope.filters);
     });
 
     // Services
+    $scope.filterComparator = filterService.comparator;
     $scope.go = routingService.go;
+    $scope.openLink = helperService.openLink;
     $scope.permalink = routingService.permalink;
-    $scope.resolveEvent = clientsService.resolveEvent;
+    $scope.selectAll = helperService.selectAll;
     $scope.stash = stashesService.stash;
     $scope.user = userService;
+    $scope.resolveEvents = function() {
+      helperService.deleteItems(clientsService.resolveEvent, $scope.filtered, $scope.selected).then(function(filtered){
+        $scope.filtered = filtered;
+      });
+    };
+    $scope.silenceEvents = function() {
+      helperService.silenceItems(stashesService.stash, $scope.filtered, $scope.selected);
+    };
+
+    var updateFilters = function() {
+      var filtered = $filter('filter')($scope.events, {dc: $scope.filters.dc}, $scope.filterComparator);
+      filtered = $filter('filter')(filtered, {check: {status: $scope.filters.status}});
+      filtered = $filter('hideSilenced')(filtered, $scope.filters.silenced);
+      filtered = $filter('hideClientsSilenced')(filtered, $scope.filters.clientsSilenced);
+      filtered = $filter('hideOccurrences')(filtered, $scope.filters.occurrences);
+      filtered = $filter('filter')(filtered, $scope.filters.check);
+      filtered = $filter('filter')(filtered, $scope.filters.q);
+      filtered = $filter('collection')(filtered, 'events');
+      $scope.filtered = filtered;
+    };
 
     // Hide silenced
     $scope.filters.silenced = $cookieStore.get('hideSilenced') || conf.hideSilenced;
@@ -214,9 +387,9 @@ controllerModule.controller('events', ['clientsService', 'conf', '$cookieStore',
     });
 
     // Hide events from silenced clients
-    $scope.filters.clientSilenced = $cookieStore.get('hideClientSilenced') || conf.hideClientSilenced;
-    $scope.$watch('filters.clientSilenced', function () {
-      $cookieStore.put('hideClientSilenced', $scope.filters.clientSilenced);
+    $scope.filters.clientsSilenced = $cookieStore.get('hideClientsSilenced') || conf.hideClientsSilenced;
+    $scope.$watch('filters.clientsSilenced', function () {
+      $cookieStore.put('hideClientsSilenced', $scope.filters.clientsSilenced);
     });
 
     // Hide occurrences
@@ -224,79 +397,13 @@ controllerModule.controller('events', ['clientsService', 'conf', '$cookieStore',
     $scope.$watch('filters.occurrences', function () {
       $cookieStore.put('hideOccurrences', $scope.filters.occurrences);
     });
-
-    $scope.selectEvents = function(selectModel) {
-      var filteredEvents = $filter('filter')($rootScope.events, $scope.filters.q);
-      filteredEvents = $filter('filter')(filteredEvents, {dc: $scope.filters.dc});
-      filteredEvents = $filter('hideSilenced')(filteredEvents, $scope.filters.silenced);
-      filteredEvents = $filter('hideClientSilenced')(filteredEvents, $scope.filters.clientSilenced);
-      filteredEvents = $filter('hideOccurrences')(filteredEvents, $scope.filters.occurrences);
-      _.each(filteredEvents, function(event) {
-        event.selected = selectModel.selected;
-      });
-    };
-
-    $scope.resolveEvents = function(events) {
-      var selectedEvents = helperService.selectedItems(events);
-      _.each(selectedEvents, function(event) {
-        $scope.resolveEvent(event.dc, event.client, event.check);
-      });
-      helperService.unselectItems(selectedEvents);
-    };
-
-    $scope.silenceEvents = function($event, events) {
-      var selectedEvents = helperService.selectedItems(events);
-      $scope.stash($event, selectedEvents);
-      helperService.unselectItems(selectedEvents);
-    };
-
-    $scope.$watch('filters.q', function(newVal) {
-      var matched = $filter('filter')($rootScope.events, '!'+newVal);
-      _.each(matched, function(match) {
-        match.selected = false;
-      });
-    });
-
-    $scope.$watch('filters.dc', function(newVal) {
-      var matched = $filter('filter')($rootScope.events, {dc: '!'+newVal});
-      _.each(matched, function(match) {
-        match.selected = false;
-      });
-    });
-
-    $scope.$watch('filters.silenced', function() {
-      var matched = $filter('filter')($rootScope.events, {acknowledged: true});
-      _.each(matched, function(match) {
-        match.selected = false;
-      });
-    });
-
-    $scope.$watch('filters.clientSilenced', function() {
-      var matched = $filter('filter')($rootScope.events.client, {acknowledged: true});
-      _.each(matched, function(match) {
-        match.selected = false;
-      });
-    });
-
-    $scope.$watch('filters.occurrences', function() {
-      var matched = $filter('filter')($rootScope.events, function(event) {
-        if (('occurrences' in event.check) && !isNaN(event.check.occurrences)) {
-          return event.occurrences >= event.check.occurrences;
-        } else {
-          return true;
-        }
-      });
-      _.each(matched, function(match) {
-        match.selected = false;
-      });
-    });
   }
 ]);
 
 /**
 * Info
 */
-controllerModule.controller('info', ['backendService', '$scope', 'titleFactory', 'version',
+controllerModule.controller('InfoController', ['backendService', '$scope', 'titleFactory', 'version',
   function (backendService, $scope, titleFactory, version) {
     $scope.pageHeaderText = 'Info';
     titleFactory.set($scope.pageHeaderText);
@@ -308,17 +415,35 @@ controllerModule.controller('info', ['backendService', '$scope', 'titleFactory',
 /**
 * Login
 */
-controllerModule.controller('login', [ 'backendService', '$cookieStore', '$location', 'notification', '$rootScope', '$scope',
-function (backendService, $cookieStore, $location, notification, $rootScope, $scope) {
+controllerModule.controller('LoginController', ['audit', 'backendService', '$cookieStore', '$location', 'notification', '$rootScope', '$scope',
+function (audit, backendService, $cookieStore, $location, notification, $rootScope, $scope) {
 
   $scope.login = {user: '', pass: ''};
+
+  // get the authentication mode
+  backendService.getConfigAuth()
+    .success(function (data) {
+      $scope.configAuth = data;
+    })
+    .error(function () {
+      $scope.configAuth = 'simple';
+    });
 
   $scope.submit = function () {
     backendService.login($scope.login)
     .success(function (data) {
       $cookieStore.put('uchiwa_auth', data);
+      $rootScope.auth = {};
+      $location.path('/events');
       backendService.getConfig();
-      $location.path('/');
+
+      if ($rootScope.enterprise) {
+        var username = data.username;
+        if (angular.isUndefined(username)) {
+          username = '';
+        }
+        audit.log({action: 'login', level: 'default'});
+      }
     })
     .error(function () {
       notification('error', 'There was an error with your username/password combination. Please try again.');
@@ -326,7 +451,7 @@ function (backendService, $cookieStore, $location, notification, $rootScope, $sc
   };
 
   if (angular.isObject($rootScope.auth) || angular.isObject($rootScope.config)) {
-    $location.path('/');
+    $location.path('/events');
   }
 }
 ]);
@@ -334,8 +459,8 @@ function (backendService, $cookieStore, $location, notification, $rootScope, $sc
 /**
 * Navbar
 */
-controllerModule.controller('navbar', ['$location', '$rootScope', '$scope', 'navbarServices', 'routingService', 'userService',
-  function ($location, $rootScope, $scope, navbarServices, routingService, userService) {
+controllerModule.controller('NavbarController', ['audit', '$location', '$rootScope', '$scope', 'navbarServices', 'routingService', 'userService',
+  function (audit, $location, $rootScope, $scope, navbarServices, routingService, userService) {
 
     // Helpers
     $scope.getClass = function(path) {
@@ -348,15 +473,27 @@ controllerModule.controller('navbar', ['$location', '$rootScope', '$scope', 'nav
 
     // Services
     $scope.go = routingService.go;
-    $scope.logout = userService.logout;
     $scope.user = userService;
+
+    $scope.logout = function() {
+      if ($rootScope.enterprise) {
+        var username = userService.getUsername();
+        audit.log({action: 'logout', level: 'default', user: username}).finally(
+          function() {
+            userService.logout();
+          });
+      }
+      else {
+        userService.logout();
+      }
+    };
   }
 ]);
 
 /**
 * Settings
 */
-controllerModule.controller('settings', ['$cookies', '$scope', 'titleFactory',
+controllerModule.controller('SettingsController', ['$cookies', '$scope', 'titleFactory',
   function ($cookies, $scope, titleFactory) {
     $scope.pageHeaderText = 'Settings';
     titleFactory.set($scope.pageHeaderText);
@@ -370,11 +507,8 @@ controllerModule.controller('settings', ['$cookies', '$scope', 'titleFactory',
 /**
 * Sidebar
 */
-controllerModule.controller('sidebar', ['$location', 'navbarServices', '$scope', 'userService',
+controllerModule.controller('SidebarController', ['$location', 'navbarServices', '$scope', 'userService',
   function ($location, navbarServices, $scope, userService) {
-
-    $scope.user = userService;
-
     // Get CSS class for sidebar elements
     $scope.getClass = function(path) {
       if ($location.path().substr(0, path.length) === path) {
@@ -384,86 +518,21 @@ controllerModule.controller('sidebar', ['$location', 'navbarServices', '$scope',
       }
     };
 
-    $scope.$on('sensu', function () {
-      // Update badges
-      navbarServices.countStatuses('clients', function (item) {
-        return item.status;
-      });
-      navbarServices.countStatuses('events', function (item) {
-        return item.check.status;
-      });
-
-      // Update alert badge
-      navbarServices.health();
-    });
-  }
-]);
-
-/**
-* Aggregates
-*/
-controllerModule.controller('aggregates', ['$scope', '$routeParams', 'routingService', 'titleFactory',
-  function ($scope, $routeParams, routingService, titleFactory) {
-    $scope.pageHeaderText = 'Aggregates';
-    titleFactory.set($scope.pageHeaderText);
-
-    $scope.predicate = 'check';
-
-    // Routing
-    $scope.filters = {};
-    routingService.initFilters($routeParams, $scope.filters, ['dc', 'limit', 'q']);
-    $scope.$on('$locationChangeSuccess', function(){
-      routingService.updateFilters($routeParams, $scope.filters);
-    });
-
-    // Services
-    $scope.go = routingService.go;
-    $scope.permalink = routingService.permalink;
-  }
-]);
-
-/**
-* Aggregate
-*/
-controllerModule.controller('aggregate', ['$http', '$rootScope', '$scope', '$routeParams', 'routingService', 'titleFactory',
-  function ($http, $rootScope, $scope, $routeParams, routingService, titleFactory) {
-    $scope.pageHeaderText = 'Aggregates';
-    titleFactory.set($scope.pageHeaderText);
-
-    // Services
-    $scope.go = routingService.go;
-    $scope.permalink = routingService.permalink;
-
-    $scope.dcId = decodeURI($routeParams.dcId);
-    $scope.checkId = decodeURI($routeParams.checkId);
-    $scope.aggregate = null;
-
-    $scope.$on('sensu', function() {
-      $scope.check_aggregates = _.find($rootScope.aggregates, function(aggregate) { // jshint ignore:line
-        return $scope.checkId === aggregate.check && $scope.dcId === aggregate.dc;
-      });
-    });
-
-    var getAggregate = function () {
-      if (isNaN($scope.issued)) {
-        return;
+    $scope.$watch('metrics', function() {
+      if (angular.isObject($scope.metrics) && angular.isDefined($scope.metrics.clients)) {
+        $scope.clientsStyle = $scope.metrics.clients.critical > 0 ? 'critical' : $scope.metrics.clients.warning > 0 ? 'warning' : $scope.metrics.clients.unknown > 0 ? 'unknown' : 'success';
+        $scope.eventsStyle = $scope.metrics.events.critical > 0 ? 'critical' : $scope.metrics.events.warning > 0 ? 'warning' : $scope.metrics.events.unknown > 0 ? 'unknown' : 'success';
       }
+      else {
+        $scope.clientsStyle = 'unknown';
+        $scope.eventsStyle = 'unknown';
+      }
+    });
 
-      $http.get('get_aggregate_by_issued?check=' + $scope.checkId + '&issued=' + $scope.issued + '&dc=' + $scope.dcId)
-      .success(function(data) {
-        $scope.aggregate = data;
-      })
-      .error(function(error) {
-        console.log('Error: ' + JSON.stringify(error));
-      });
-    };
-
-    // do we have a issued parameter? if so, display the aggregate result
-    $scope.issued = decodeURI($routeParams.issued);
-    getAggregate();
-    $scope.$on('$routeUpdate', function(){
-      $scope.issued = decodeURI($routeParams.issued);
-      getAggregate();
+    // Services
+    $scope.user = userService;
+    $scope.$watch('health', function (){
+      navbarServices.health();
     });
   }
 ]);
@@ -471,13 +540,33 @@ controllerModule.controller('aggregate', ['$http', '$rootScope', '$scope', '$rou
 /**
 * Stashes
 */
-controllerModule.controller('stashes', ['$scope', '$routeParams', 'routingService', 'stashesService', 'titleFactory', 'userService',
-  function ($scope, $routeParams, routingService, stashesService, titleFactory, userService) {
+controllerModule.controller('StashesController', ['$filter', 'filterService', 'helperService', '$rootScope', '$routeParams', 'routingService', '$scope', 'Sensu', 'stashesService', 'titleFactory', 'userService',
+  function ($filter, filterService, helperService, $rootScope, $routeParams, routingService, $scope, Sensu, stashesService, titleFactory, userService) {
     $scope.pageHeaderText = 'Stashes';
     titleFactory.set($scope.pageHeaderText);
 
     $scope.predicate = 'client';
-    $scope.deleteStash = stashesService.deleteStash;
+    $scope.reverse = false;
+    $scope.selectAll = {checked: false};
+    $scope.selected = {all: false, ids: {}};
+
+    // Get stashes
+    $scope.stashes = [];
+    $scope.filtered = [];
+    var timer = Sensu.updateStashes();
+    $scope.$watch(function () { return Sensu.getStashes(); }, function (data) {
+      $scope.stashes = data;
+      updateFilters();
+    });
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
+    });
+
+    // Filters
+    $scope.$watchGroup(['filters.q', 'filters.dc'], function(newValues, oldValues) {
+      updateFilters();
+      helperService.updateSelected(newValues, oldValues, $scope.filtered, $scope.selected);
+    });
 
     // Routing
     $scope.filters = {};
@@ -487,16 +576,36 @@ controllerModule.controller('stashes', ['$scope', '$routeParams', 'routingServic
     });
 
     // Services
+    $scope.filterComparator = filterService.comparator;
     $scope.permalink = routingService.permalink;
+    $scope.selectAll = helperService.selectAll;
     $scope.user = userService;
+    $scope.deleteStash = function(id) {
+      stashesService.deleteStash(id).then(function() {
+        $scope.filtered = $filter('filter')($scope.filtered, {_id: '!'+id});
+        $rootScope.skipOneRefresh = true;
+      });
+    };
+    $scope.deleteStashes = function() {
+      helperService.deleteItems(stashesService.deleteStash, $scope.filtered, $scope.selected).then(function(filtered){
+        $scope.filtered = filtered;
+      });
+    };
+
+    var updateFilters = function() {
+      var filtered = $filter('filter')($scope.stashes, {dc: $scope.filters.dc}, $scope.filterComparator);
+      filtered = $filter('filter')(filtered, $scope.filters.q);
+      filtered = $filter('collection')(filtered, 'stashes');
+      $scope.filtered = filtered;
+    };
   }
 ]);
 
 /**
 * Stash Modal
 */
-controllerModule.controller('StashModalCtrl', ['conf', '$filter', 'items', '$modalInstance', 'notification', '$scope', 'stashesService',
-  function (conf, $filter, items, $modalInstance, notification, $scope, stashesService) {
+controllerModule.controller('StashModalController', ['conf', '$filter', 'items', '$modalInstance', 'notification', '$q', '$scope', 'stashesService',
+  function (conf, $filter, items, $modalInstance, notification, $q, $scope, stashesService) {
     $scope.items = items;
     $scope.acknowledged = $filter('filter')(items, {acknowledged: true}).length;
     $scope.itemType = items[0].hasOwnProperty('client') ? 'check' : 'client';
@@ -510,48 +619,38 @@ controllerModule.controller('StashModalCtrl', ['conf', '$filter', 'items', '$mod
     };
     $scope.stash.reason = '';
     $scope.stash.expiration = 900;
-    $scope.stash.content.from = moment().format(conf.date);
+    $scope.stash.content.to = moment().add(1, 'h').format(conf.date);
 
-    function calculateToFrom() {
-      if ($scope.stash.content && ($scope.stash.content.to && $scope.stash.content.from)) {
-        $scope.stash.content.timestamp = new Date($scope.stash.content.from).getTime() / 1000;
-        $scope.stash.expiration = (new Date($scope.stash.content.to).getTime() -
-        new Date($scope.stash.content.from).getTime()) / 1000;
-        $scope.stash.content.to = null;
-        return true;
-      }
-      else {
-        return false;
-      }
-    }
-
-    $scope.stashForItem = function(stashes, item) {
-      var path = 'silence/';
-
-      if ($scope.itemType === 'client') {
-        path = path + item.name;
-      } else if ($scope.itemType === 'check') {
-        path = path + item.client.name + '/' + item.check.name;
-      }
-
-      return _.findWhere(stashes, {
-        dc: item.dc,
-        path: path
-      });
-    };
 
     $scope.ok = function () {
-      if ($scope.stash.expiration === 'custom' && !calculateToFrom()) {
-        notification('error', 'Please enter both from and to values.');
-        return false;
+      if ($scope.stash.expiration === 'custom') {
+        if (angular.isUndefined($scope.stash.content.to)) {
+          notification('error', 'Please enter a date for the custom expiration.');
+          return false;
+        }
+        $scope.stash = stashesService.getExpirationFromDateRange($scope.stash);
       }
-      _.each(items, function(item) {
-        stashesService.submit(item, $scope.stash);
+
+      var promises = [];
+      angular.forEach(items, function(item) {
+        var deffered = $q.defer();
+        stashesService.submit(item, $scope.stash).then(function() {
+          deffered.resolve(item);
+        }, function() {
+          deffered.reject();
+        });
+        promises.push(deffered.promise);
       });
-      $modalInstance.close();
+      $q.all(promises).then(function() {
+        $modalInstance.close();
+      });
     };
     $scope.cancel = function () {
       $modalInstance.dismiss('cancel');
     };
+
+    // Services
+    $scope.findStash = stashesService.find;
+    $scope.getPath = stashesService.getPath;
   }
 ]);

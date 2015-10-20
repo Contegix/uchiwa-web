@@ -1,17 +1,36 @@
 'use strict';
 
 describe('directives', function () {
-  var scope;
+  var $compile;
+  var $rootScope;
   var element;
+  var scope;
 
   beforeEach(module('uchiwa'));
-  beforeEach(inject(function () {
-    scope = jasmine.createSpyObj('scope', ['$on', '$watch']);
+  beforeEach(module('partials'));
+  beforeEach(inject(function (_$compile_, _$rootScope_, $httpBackend) {
+    $compile = _$compile_;
+    $httpBackend.whenGET('config').respond([]);
+    $rootScope = _$rootScope_;
+    $rootScope.partialsPath = 'partials';
     element = jasmine.createSpyObj('element', ['tooltip', 'attr', 'removeAttr', 'addClass']);
+    scope = jasmine.createSpyObj('scope', ['$on', '$watch']);
   }));
 
-  describe('siteTheme', function () {
+  describe('clientSummary', function() {
+    it('ignores redundant keys in the client data and handles images', function(){
+      scope = $rootScope.$new();
+      element = $compile('<client-summary client="{{client}}"></client-summary>')(scope);
+      scope.client = {dc: 'foo', image: 'https://uchiwa.io/dashboard.jpg', version: '0.20.4'};
+      scope.$digest();
 
+      expect(scope.clientSummary).toEqual({version: '0.20.4'});
+      expect(scope.clientImages[0].value).toBe('<a target="_blank" href="https://uchiwa.io/dashboard.jpg"><img src="https://uchiwa.io/dashboard.jpg"></a>');
+      expect(element.find('img').eq(0).attr('src')).toBe('https://uchiwa.io/dashboard.jpg')
+    });
+  });
+
+  describe('siteTheme', function () {
     it('should be restricted to elements and attributes', inject(function (siteThemeDirective) {
       expect(siteThemeDirective[0].restrict).toBe('EA');
     }));
@@ -22,8 +41,8 @@ describe('directives', function () {
 
     it('should define themes', inject(function (siteThemeDirective) {
       siteThemeDirective[0].link(scope, element);
-      expect(scope.themes).toBeDefined();
-      expect(scope.themes.length).toBeGreaterThan(0);
+      expect(scope.currentTheme).toBeDefined();
+      expect($rootScope.themes.length).toBeGreaterThan(0);
     }));
 
     it('should listen for theme:changed event', inject(function (siteThemeDirective) {
@@ -33,7 +52,6 @@ describe('directives', function () {
   });
 
   describe('statusGlyph', function () {
-
     it('should be restricted to elements and attributes', inject(function (statusGlyphDirective) {
       expect(statusGlyphDirective[0].restrict).toBe('EA');
     }));
@@ -41,16 +59,5 @@ describe('directives', function () {
     it('should have a link method', inject(function (statusGlyphDirective) {
       expect(statusGlyphDirective[0].link).toBeDefined();
     }));
-
-    it('should add classes when calling link', inject(function (statusGlyphDirective) {
-      var attrs = {
-        statusGlyph: 'client.style'
-      };
-      statusGlyphDirective[0].link(scope, element, attrs);
-
-      expect(scope.$watch).toHaveBeenCalledWith(attrs.statusGlyph, jasmine.any(Function));
-    }));
-
   });
-
 });

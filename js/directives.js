@@ -2,6 +2,38 @@
 
 var directiveModule = angular.module('uchiwa.directives', []);
 
+// clientSummary generate the client key/value panel on the client view
+directiveModule.directive('clientSummary', ['$filter', '$rootScope', function ($filter, $rootScope) {
+  return {
+    templateUrl: $rootScope.partialsPath + '/directives/client-summary.html',
+    link: function (scope, element, attrs) {
+      scope.clientSummary = {};
+
+      attrs.$observe('client', function() {
+        scope.clientImages = [];
+        angular.forEach(scope.client, function(value, key) {
+          // Ignore redundant keys
+          var unusedKeys = [ 'acknowledged', 'dc', 'events', 'eventsSummary', 'history', 'output', 'status' ];
+          if (unusedKeys.indexOf(key) === -1) {
+            // Apply filters
+            value = $filter('getTimestamp')(value);
+            value = $filter('richOutput')(value);
+
+            // Move images to their own panels
+            if (/<img src=/.test(value)) {
+              scope.clientImages.push({key: key, value: value});
+              delete scope.clientSummary[key];
+            } else {
+              scope.clientSummary[key] = value;
+              scope.timestamp = scope.client.timestamp;
+            }
+          }
+        });
+      });
+    }
+  };
+}]);
+
 directiveModule.directive('panelActions', ['$rootScope', function ($rootScope) {
   return {
     restrict: 'E',
@@ -27,7 +59,48 @@ directiveModule.directive('panelLimit', ['$rootScope', function ($rootScope) {
   };
 }]);
 
-directiveModule.directive('siteTheme', ['conf', '$cookieStore', '$rootScope', function (conf, $cookieStore, $rootScope) {
+directiveModule.directive('progressBar', ['$filter', '$rootScope', function ($filter, $rootScope) {
+  return {
+    restrict: 'E',
+    scope: {
+      aggregate: '='
+    },
+    templateUrl: $rootScope.partialsPath + '/directives/progress-bar.html',
+    link: function (scope, element, attrs) {
+      attrs.$observe('aggregate', function() {
+        scope.critical = $filter('number')(scope.aggregate.critical / scope.aggregate.total * 100, 0);
+        scope.success = $filter('number')(scope.aggregate.ok / scope.aggregate.total * 100, 0);
+        scope.unknown = $filter('number')(scope.aggregate.unknown / scope.aggregate.total * 100, 0);
+        scope.warning = $filter('number')(scope.aggregate.warning / scope.aggregate.total * 100, 0);
+      });
+    }
+  };
+}]);
+
+directiveModule.directive('relativeTime', ['$filter', '$rootScope', function ($filter, $rootScope) {
+  return {
+    restrict: 'E',
+    scope: {
+      timestamp: '='
+    },
+    templateUrl: $rootScope.partialsPath + '/directives/relative-time.html'
+  };
+}]);
+
+directiveModule.directive('silenceIcon', function () {
+  return {
+    restrict: 'E',
+    scope: {
+      acknowledged: '='
+    },
+    template: '<span class="fa-stack">' +
+      '<i class="fa fa-fw {{ acknowledged | getAckClass }}"></i>' +
+      '<i class="fa fa-ban fa-stack-1x text-danger" ng-if="acknowledged"></i>' +
+      '</span>'
+  };
+});
+
+directiveModule.directive('siteTheme', ['conf', '$cookies', '$rootScope', function (conf, $cookies, $rootScope) {
   return {
     restrict: 'EA',
     link: function (scope, element) {
@@ -39,10 +112,17 @@ directiveModule.directive('siteTheme', ['conf', '$cookieStore', '$rootScope', fu
       var setTheme = function (theme) {
         var themeName = angular.isDefined(theme) ? theme : conf.theme;
         scope.currentTheme = lookupTheme(themeName);
+
+        if (angular.isUndefined(scope.currentTheme)) {
+          scope.currentTheme = $rootScope.themes[0];
+        }
+
         var name = scope.currentTheme.name;
         var enterprise = scope.currentTheme.enterprise || false;
 
-        $cookieStore.put('uchiwa_theme', name);
+        var oneYearExpiration = new Date();
+        oneYearExpiration.setYear(oneYearExpiration.getFullYear()+1);
+        $cookies.put('uchiwa_theme', name, { 'expires': oneYearExpiration });
 
         var path = enterprise ? 'css/' : 'bower_components/uchiwa-web/css/';
         element.attr('href', path + name + '/' + name + '.css');
@@ -50,7 +130,7 @@ directiveModule.directive('siteTheme', ['conf', '$cookieStore', '$rootScope', fu
       scope.$on('theme:changed', function (event, theme) {
         setTheme(theme.name);
       });
-      var currentTheme = $cookieStore.get('uchiwa_theme');
+      var currentTheme = $cookies.get('uchiwa_theme');
       setTheme(currentTheme);
     }
   };
@@ -62,6 +142,7 @@ directiveModule.directive('statusGlyph', ['$filter', function ($filter) {
     link: function(scope, element, attrs) {
 
       function updateGlyph(style) {
+        style = parseInt(style);
         element.removeAttr('class');
         element.addClass('fa fa-fw');
         switch(style) {
@@ -72,7 +153,7 @@ directiveModule.directive('statusGlyph', ['$filter', function ($filter) {
             element.addClass('fa-exclamation-circle');
             break;
           case 2:
-            element.addClass('fa-bomb');
+            element.addClass('fa-times-circle-o');
             break;
           case 3:
             element.addClass('fa-question-circle');
@@ -82,9 +163,8 @@ directiveModule.directive('statusGlyph', ['$filter', function ($filter) {
         var status = $filter('getStatusClass')(style);
         element.addClass('text-' + status);
       }
-
-      scope.$watch(attrs.statusGlyph, function(value) {
-        updateGlyph(value);
+      attrs.$observe('statusGlyph', function() {
+        updateGlyph(attrs.statusGlyph);
       });
     }
   };
