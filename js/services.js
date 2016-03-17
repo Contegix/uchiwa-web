@@ -7,6 +7,8 @@ var serviceModule = angular.module('uchiwa.services', []);
 */
 serviceModule.service('backendService', ['audit', 'conf', '$http', '$interval', '$location', '$rootScope',
   function(audit, conf, $http, $interval, $location, $rootScope){
+    var errorRefresh = conf.appName+' is having trouble updating its data. Try to refresh the page if this issue persists.';
+
     this.auth = function () {
       return $http.get('auth');
     };
@@ -15,6 +17,9 @@ serviceModule.service('backendService', ['audit', 'conf', '$http', '$interval', 
         audit.log({action: 'delete_client', level: 'default', output: id});
       }
       return $http.delete('clients/'+id);
+    };
+    this.deleteCheckResult = function (id) {
+      return $http.delete('results/'+id);
     };
     this.deleteEvent = function (id) {
       return $http.delete('events/'+id);
@@ -50,7 +55,10 @@ serviceModule.service('backendService', ['audit', 'conf', '$http', '$interval', 
           conf.refresh = data.Uchiwa.Refresh * 1000;
         })
         .error(function(error) {
-          console.error(JSON.stringify(error));
+          $rootScope.$emit('notification', 'error', errorRefresh);
+          if (error !== null) {
+            console.error(JSON.stringify(error));
+          }
         });
     };
     this.getConfigAuth = function () {
@@ -67,7 +75,10 @@ serviceModule.service('backendService', ['audit', 'conf', '$http', '$interval', 
           }
         })
         .error(function(error) {
-          console.error(JSON.stringify(error));
+          $rootScope.$emit('notification', 'error', errorRefresh);
+          if (error !== null) {
+            console.error(JSON.stringify(error));
+          }
         });
     };
     this.getEvents = function () {
@@ -79,7 +90,10 @@ serviceModule.service('backendService', ['audit', 'conf', '$http', '$interval', 
           $rootScope.health = data;
         })
         .error(function(error) {
-          console.error(JSON.stringify(error));
+          $rootScope.$emit('notification', 'error', errorRefresh);
+          if (error !== null) {
+            console.error(JSON.stringify(error));
+          }
         });
     };
     this.getMetrics = function() {
@@ -88,9 +102,17 @@ serviceModule.service('backendService', ['audit', 'conf', '$http', '$interval', 
           $rootScope.metrics = data;
         })
         .error(function(error) {
-          $rootScope.metrics = {aggregates: {total: 0}, checks: {total: 0}, clients: {critical: 0, total: 0, unknown: 0, warning: 0}, datacenters: {total: 0}, events: {critical: 0, total: 0, unknown: 0, warning: 0}, stashes: {total: 0}};
-          console.error(JSON.stringify(error));
+          $rootScope.$emit('notification', 'error', errorRefresh);
+          if (error !== null) {
+            console.error(JSON.stringify(error));
+          }
+          if (angular.isUndefined($rootScope.metrics)) {
+            $rootScope.metrics = {aggregates: {total: 0}, checks: {total: 0}, clients: {critical: 0, total: 0, unknown: 0, warning: 0}, datacenters: {total: 0}, events: {critical: 0, total: 0, unknown: 0, warning: 0}, stashes: {total: 0}};
+          }
         });
+    };
+    this.getSEMetrics = function(endpoint) {
+      return $http.get('metrics/'+endpoint);
     };
     this.getStashes = function () {
       return $http.get('stashes');
@@ -101,6 +123,9 @@ serviceModule.service('backendService', ['audit', 'conf', '$http', '$interval', 
     this.login = function (payload) {
       return $http.post('login', payload);
     };
+    this.postCheckRequest = function (payload) {
+      return $http.post('request', payload);
+    };
     this.postStash = function (payload) {
       return $http.post('stashes', payload);
     };
@@ -108,15 +133,49 @@ serviceModule.service('backendService', ['audit', 'conf', '$http', '$interval', 
 ]);
 
 /**
+* Checks Services
+*/
+serviceModule.service('checksService', ['$rootScope', 'backendService', function ($rootScope, backendService) {
+  this.issueCheckRequest = function(check, dc, subscribers) {
+    var payload = {check: check, dc: dc, subscribers: subscribers};
+    return backendService.postCheckRequest(payload)
+      .success(function () {
+        $rootScope.$emit('notification', 'success', 'The check execution request has been issued');
+      })
+      .error(function (error) {
+        $rootScope.$emit('notification', 'error', 'Could not issue the check execution request');
+        console.error(error);
+      });
+  };
+}]);
+
+/**
 * Clients Services
 */
 serviceModule.service('clientsService', ['$location', '$rootScope', 'backendService', function ($location, $rootScope, backendService) {
-  this.searchCheckHistory = function (name, history) {
-    return history.filter(function (item) {
-      return item.check === name;
-    })[0];
+  this.deleteCheckResult = function(id) {
+    return backendService.deleteCheckResult(id)
+      .success(function () {
+        delete $location.$$search.check;
+        $location.$$compose();
+        $rootScope.$emit('notification', 'success', 'The check result has been deleted.');
+      })
+      .error(function (error) {
+        $rootScope.$emit('notification', 'error', 'Could not delete the result of the check '+ id);
+        console.error(error);
+      });
   };
-  this.resolveEvent = function (id) {
+  this.deleteClient = function(id) {
+    return backendService.deleteClient(id)
+      .success(function () {
+        $rootScope.$emit('notification', 'success', 'The client has been deleted.');
+      })
+      .error(function (error) {
+        $rootScope.$emit('notification', 'error', 'Could not delete the client '+ id);
+        console.error(error);
+      });
+  };
+  this.resolveEvent = function(id) {
     return backendService.deleteEvent(id)
       .success(function () {
         $rootScope.$emit('notification', 'success', 'The event has been resolved.');
@@ -126,15 +185,10 @@ serviceModule.service('clientsService', ['$location', '$rootScope', 'backendServ
         console.error(error);
       });
   };
-  this.deleteClient = function (id) {
-    return backendService.deleteClient(id)
-      .success(function () {
-        $rootScope.$emit('notification', 'success', 'The client has been deleted.');
-      })
-      .error(function (error) {
-        $rootScope.$emit('notification', 'error', 'Could not delete the client '+ id);
-        console.error(error);
-      });
+  this.searchCheckHistory = function(name, history) {
+    return history.filter(function (item) {
+      return item.check === name;
+    })[0];
   };
 }]);
 
@@ -239,6 +293,16 @@ serviceModule.service('stashesService', ['backendService', 'conf', '$filter', '$
         dc: item.dc,
         path: path
       });
+    };
+    this.get = function(stashes, id) {
+      for (var i = 0, len = stashes.length; i < len; i++) {
+        if (angular.isObject(stashes[i]) && angular.isDefined(stashes[i]._id)) {
+          if (stashes[i]._id === id) {
+            return stashes[i];
+          }
+        }
+      }
+      return null;
     };
     this.getExpirationFromDateRange = function(stash) {
       if (angular.isUndefined(stash) || !angular.isObject(stash) || angular.isUndefined(stash.content) || !angular.isObject(stash.content)) {
@@ -387,6 +451,21 @@ function($filter, $q, $rootScope) {
     return $q.all(promises).then(function() {
       return filtered;
     });
+  };
+  // getSelected returns all filtered objects that are selected and unselected them
+  this.getSelected = function(filtered, selected) {
+    var items = [];
+    angular.forEach(selected.ids, function(value, key) {
+      if (value) {
+        var found = $filter('filter')(filtered, {_id: key});
+        if (found.length) {
+          items.push(found[0]);
+          selected.ids[key] = false;
+        }
+      }
+    });
+    selected.all = false;
+    return items;
   };
   // Stop event propagation if an A tag is clicked
   this.openLink = function($event) {

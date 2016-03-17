@@ -116,13 +116,16 @@ describe('filters', function () {
   });
 
   describe('getTimestamp', function () {
-
-    it('should convert epoch to human readable date', inject(function (getTimestampFilter) {
+    it('handles bogus values', inject(function (getTimestampFilter) {
+      expect(getTimestampFilter(null)).toBe('');
+      expect(getTimestampFilter(undefined)).toBe('');
       expect(getTimestampFilter('test')).toBe('test');
       expect(getTimestampFilter(1)).toBe(1);
-      expect(getTimestampFilter(1410908218)).toBe(moment.utc('2014-09-16 22:56:58', 'YYYY-MM-DD HH:mm:ss').local().format('YYYY-MM-DD HH:mm:ss'));
     }));
 
+    it('converts epoch to human readable date', inject(function (getTimestampFilter) {
+      expect(getTimestampFilter(1410908218)).toBe(moment.utc('2014-09-16 22:56:58', 'YYYY-MM-DD HH:mm:ss').local().format('YYYY-MM-DD HH:mm:ss'));
+    }));
   });
 
   describe('getExpireTimestamp', function () {
@@ -237,9 +240,13 @@ describe('filters', function () {
 
   });
 
+  describe('highlight', function () {
+    it('converts an object to JSON string', inject(function (highlightFilter) {
+      expect(highlightFilter({foo: 'bar'})).toContain('<span class="hljs-string">"bar"</span>');
+    }));
+  });
 
   describe('imagey', function () {
-
     it('should find an image and display it', inject(function (imageyFilter) {
       expect(imageyFilter(false)).toBe(false);
       expect(imageyFilter('http://foo.bar')).toBe('http://foo.bar');
@@ -248,23 +255,21 @@ describe('filters', function () {
       expect(imageyFilter('https://foo.bar/qux.gif')).toBe('<img src="https://foo.bar/qux.gif">');
       expect(imageyFilter('https://foo.bar:443/qux.gif')).toBe('<img src="https://foo.bar:443/qux.gif">');
     }));
-
   });
 
   describe('richOutput', function () {
-
-    it('should convert an object to JSON string', inject(function (richOutputFilter) {
-      expect(richOutputFilter({foo: 'bar'})).toContain('<span class="hljs-attribute">foo</span>');
+    it('handles bogus values', inject(function (richOutputFilter) {
+      expect(richOutputFilter(null)).toBe('');
+      expect(richOutputFilter(undefined)).toBe('');
     }));
 
-    it('should convert an image URL to a HTML image', inject(function (richOutputFilter) {
+    it('converts an image URL to a HTML image', inject(function (richOutputFilter) {
       expect(richOutputFilter('http://foo.bar/baz.gif')).toContain('<a target="_blank" href="http://foo.bar/baz.gif"><img src=');
     }));
 
-    it('should convert an URL to a HTML URL', inject(function (richOutputFilter) {
+    it('converts an URL to a HTML URL', inject(function (richOutputFilter) {
       expect(richOutputFilter('http://foo.bar/baz')).toContain('<a target="_blank" href="http://foo.bar/baz">');
     }));
-
   });
 
   describe('setMissingProperty', function () {

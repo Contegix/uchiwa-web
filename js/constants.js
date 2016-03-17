@@ -1,6 +1,7 @@
 var constantModule = angular.module('uchiwa.constants', []);
 
 constantModule.value('conf', {
+  appName: 'Uchiwa',
   date: 'YYYY-MM-DD HH:mm:ss',
   enterprise: false,
   hideSilenced: false,
@@ -21,5 +22,5 @@ constantModule.value('themes', [
 
 // Version
 constantModule.constant('version', {
-  uchiwa: '0.12.0'
+  uchiwa: '0.14.3'
 });

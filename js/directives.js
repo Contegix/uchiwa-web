@@ -39,6 +39,8 @@ directiveModule.directive('panelActions', ['$rootScope', function ($rootScope) {
     restrict: 'E',
     scope: {
       data: '=',
+      refreshFn: '=',
+      refreshLegend: '@',
       resolveFn: '=',
       resolveLegend: '@',
       silenceFn: '='
@@ -59,7 +61,7 @@ directiveModule.directive('panelLimit', ['$rootScope', function ($rootScope) {
   };
 }]);
 
-directiveModule.directive('progressBar', ['$filter', '$rootScope', function ($filter, $rootScope) {
+directiveModule.directive('uwProgressBar', ['$filter', '$rootScope', function ($filter, $rootScope) {
   return {
     restrict: 'E',
     scope: {
@@ -94,7 +96,7 @@ directiveModule.directive('silenceIcon', function () {
       acknowledged: '='
     },
     template: '<span class="fa-stack">' +
-      '<i class="fa fa-fw {{ acknowledged | getAckClass }}"></i>' +
+      '<i class="fa {{ acknowledged | getAckClass }}"></i>' +
       '<i class="fa fa-ban fa-stack-1x text-danger" ng-if="acknowledged"></i>' +
       '</span>'
   };

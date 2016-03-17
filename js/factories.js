@@ -81,7 +81,9 @@ factoryModule.factory('Sensu', function(backendService, conf, $interval, $rootSc
             sensu.aggregates = data;
           })
           .error(function(error) {
-            console.error(JSON.stringify(error));
+            if (error !== null) {
+              console.error(JSON.stringify(error));
+            }
           });
       };
       update();
@@ -96,7 +98,9 @@ factoryModule.factory('Sensu', function(backendService, conf, $interval, $rootSc
             sensu.checks = data;
           })
           .error(function(error) {
-            console.error(JSON.stringify(error));
+            if (error !== null) {
+              console.error(JSON.stringify(error));
+            }
           });
       };
       update();
@@ -116,7 +120,9 @@ factoryModule.factory('Sensu', function(backendService, conf, $interval, $rootSc
           })
           .error(function(error) {
             sensu.client = null;
-            console.error(JSON.stringify(error));
+            if (error !== null) {
+              console.error(JSON.stringify(error));
+            }
           });
       };
       update();
@@ -135,7 +141,9 @@ factoryModule.factory('Sensu', function(backendService, conf, $interval, $rootSc
             sensu.clients = data;
           })
           .error(function(error) {
-            console.error(JSON.stringify(error));
+            if (error !== null) {
+              console.error(JSON.stringify(error));
+            }
           });
       };
       update();
@@ -162,8 +170,18 @@ factoryModule.factory('Sensu', function(backendService, conf, $interval, $rootSc
             sensu.events = data;
           })
           .error(function(error) {
-            console.error(JSON.stringify(error));
+            if (error !== null) {
+              console.error(JSON.stringify(error));
+            }
           });
+      };
+      update();
+      return $interval(update, conf.refresh);
+    },
+    updateMetrics: function() {
+      var update = function() {
+        backendService.getHealth();
+        backendService.getMetrics();
       };
       update();
       return $interval(update, conf.refresh);
@@ -181,7 +199,9 @@ factoryModule.factory('Sensu', function(backendService, conf, $interval, $rootSc
             sensu.stashes = data;
           })
           .error(function(error) {
-            console.error(JSON.stringify(error));
+            if (error !== null) {
+              console.error(JSON.stringify(error));
+            }
           });
       };
       update();
@@ -193,7 +213,9 @@ factoryModule.factory('Sensu', function(backendService, conf, $interval, $rootSc
           sensu.subscriptions = data;
         })
         .error(function(error) {
-          console.error(JSON.stringify(error));
+          if (error !== null) {
+            console.error(JSON.stringify(error));
+          }
         });
     }
   };

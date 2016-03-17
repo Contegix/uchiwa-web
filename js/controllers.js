@@ -94,19 +94,22 @@ controllerModule.controller('AggregatesController', ['filterService', '$routePar
 /**
 * Checks
 */
-controllerModule.controller('ChecksController', ['filterService', '$routeParams', 'routingService', '$scope', 'Sensu', 'titleFactory',
-  function (filterService, $routeParams, routingService, $scope, Sensu, titleFactory) {
+controllerModule.controller('ChecksController', ['checksService', '$filter', 'filterService', 'helperService', '$routeParams', 'routingService', '$scope', 'Sensu', 'titleFactory',
+  function (checksService, $filter, filterService, helperService, $routeParams, routingService, $scope, Sensu, titleFactory) {
     $scope.pageHeaderText = 'Checks';
     titleFactory.set($scope.pageHeaderText);
 
     $scope.predicate = 'name';
     $scope.reverse = false;
+    $scope.selected = {all: false, ids: {}};
 
     // Get checks
     $scope.checks = [];
+    $scope.filtered = [];
     var timer = Sensu.updateChecks();
     $scope.$watch(function () { return Sensu.getChecks(); }, function (data) {
       $scope.checks = data;
+      updateFilters();
     });
     $scope.$on('$destroy', function() {
       Sensu.stop(timer);
@@ -116,6 +119,12 @@ controllerModule.controller('ChecksController', ['filterService', '$routeParams'
     $scope.subscribersSummary = function(subscribers){
       return subscribers.join(' ');
     };
+
+    // Filters
+    $scope.$watchGroup(['collection.search', 'filters.q', 'filters.dc'], function(newValues, oldValues) {
+      updateFilters();
+      helperService.updateSelected(newValues, oldValues, $scope.filtered, $scope.selected);
+    });
 
     // Routing
     $scope.filters = {};
@@ -127,6 +136,21 @@ controllerModule.controller('ChecksController', ['filterService', '$routeParams'
     // Services
     $scope.filterComparator = filterService.comparator;
     $scope.permalink = routingService.permalink;
+    $scope.selectAll = helperService.selectAll;
+
+    $scope.issueCheckRequest = function() {
+      var items = helperService.getSelected($scope.filtered, $scope.selected);
+      angular.forEach(items, function(item) {
+        checksService.issueCheckRequest(item.name, item.dc, item.subscribers);
+      });
+    };
+
+    var updateFilters = function() {
+      var filtered = $filter('filter')($scope.checks, {dc: $scope.filters.dc}, $scope.filterComparator);
+      filtered = $filter('filter')(filtered, $scope.filters.q);
+      filtered = $filter('collection')(filtered, 'checks');
+      $scope.filtered = filtered;
+    };
   }
 ]);
 
@@ -218,6 +242,7 @@ controllerModule.controller('ClientController', ['backendService', 'clientsServi
     });
 
     // Services
+    $scope.deleteCheckResult = clientsService.deleteCheckResult;
     $scope.deleteClient = clientsService.deleteClient;
     $scope.resolveEvent = clientsService.resolveEvent;
     $scope.permalink = routingService.permalink;
@@ -261,7 +286,7 @@ controllerModule.controller('ClientsController', ['clientsService', '$filter', '
     });
 
     // Filters
-    $scope.$watchGroup(['filters.q', 'filters.dc', 'filters.subscription', 'filters.status'], function(newValues, oldValues) {
+    $scope.$watchGroup(['collection.search', 'filters.q', 'filters.dc', 'filters.subscription', 'filters.status'], function(newValues, oldValues) {
       updateFilters();
       helperService.updateSelected(newValues, oldValues, $scope.filtered, $scope.selected);
     });
@@ -304,10 +329,16 @@ controllerModule.controller('ClientsController', ['clientsService', '$filter', '
 /**
 * Datacenters
 */
-controllerModule.controller('DatacentersController', ['$scope', 'titleFactory',
-  function ($scope, titleFactory) {
+controllerModule.controller('DatacentersController', ['$scope', 'Sensu', 'titleFactory',
+  function ($scope, Sensu, titleFactory) {
     $scope.pageHeaderText = 'Datacenters';
     titleFactory.set($scope.pageHeaderText);
+
+    // Get health and metrics
+    var timer = Sensu.updateMetrics();
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
+    });
   }
 ]);
 
@@ -340,7 +371,7 @@ controllerModule.controller('EventsController', ['clientsService', 'conf', '$coo
     });
 
     // Filters
-    $scope.$watchGroup(['filters.q', 'filters.dc', 'filters.check' , 'filters.status' , 'filters.silenced' , 'filters.clientsSilenced' , 'filters.occurrences'], function(newValues, oldValues) {
+    $scope.$watchGroup(['collection.search', 'filters.q', 'filters.dc', 'filters.check' , 'filters.status' , 'filters.silenced' , 'filters.clientsSilenced' , 'filters.occurrences'], function(newValues, oldValues) {
       updateFilters();
       helperService.updateSelected(newValues, oldValues, $scope.filtered, $scope.selected);
     });
@@ -403,12 +434,18 @@ controllerModule.controller('EventsController', ['clientsService', 'conf', '$coo
 /**
 * Info
 */
-controllerModule.controller('InfoController', ['backendService', '$scope', 'titleFactory', 'version',
-  function (backendService, $scope, titleFactory, version) {
+controllerModule.controller('InfoController', ['backendService', '$scope', 'Sensu', 'titleFactory', 'version',
+  function (backendService, $scope, Sensu, titleFactory, version) {
     $scope.pageHeaderText = 'Info';
     titleFactory.set($scope.pageHeaderText);
 
     $scope.uchiwa = { version: version.uchiwa };
+
+    // Get health and metrics
+    var timer = Sensu.updateMetrics();
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
+    });
   }
 ]);
 
@@ -493,13 +530,19 @@ controllerModule.controller('NavbarController', ['audit', '$location', '$rootSco
 /**
 * Settings
 */
-controllerModule.controller('SettingsController', ['$cookies', '$scope', 'titleFactory',
-  function ($cookies, $scope, titleFactory) {
+controllerModule.controller('SettingsController', ['$cookies', '$scope', 'Sensu', 'titleFactory',
+  function ($cookies, $scope, Sensu, titleFactory) {
     $scope.pageHeaderText = 'Settings';
     titleFactory.set($scope.pageHeaderText);
 
     $scope.$watch('currentTheme', function (theme) {
       $scope.$emit('theme:changed', theme);
+    });
+
+    // Get health and metrics
+    var timer = Sensu.updateMetrics();
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
     });
   }
 ]);
@@ -538,66 +581,42 @@ controllerModule.controller('SidebarController', ['$location', 'navbarServices',
 ]);
 
 /**
-* Stashes
+* Stash
 */
-controllerModule.controller('StashesController', ['$filter', 'filterService', 'helperService', '$rootScope', '$routeParams', 'routingService', '$scope', 'Sensu', 'stashesService', 'titleFactory', 'userService',
-  function ($filter, filterService, helperService, $rootScope, $routeParams, routingService, $scope, Sensu, stashesService, titleFactory, userService) {
-    $scope.pageHeaderText = 'Stashes';
-    titleFactory.set($scope.pageHeaderText);
+controllerModule.controller('StashController', [ 'backendService', '$filter', '$routeParams', '$scope', 'Sensu', 'stashesService', 'titleFactory',
+  function (backendService, $filter, $routeParams, $scope, Sensu, stashesService, titleFactory) {
+    // Routing
+    $scope.id = decodeURI($routeParams.id);
+    titleFactory.set($scope.id);
 
-    $scope.predicate = 'client';
-    $scope.reverse = false;
-    $scope.selectAll = {checked: false};
-    $scope.selected = {all: false, ids: {}};
+    // Get the stash
+    $scope.stash = null;
+    var stashes = [];
+    backendService.getStashes()
+      .success(function (data) {
+        stashes = data;
 
-    // Get stashes
-    $scope.stashes = [];
-    $scope.filtered = [];
-    var timer = Sensu.updateStashes();
-    $scope.$watch(function () { return Sensu.getStashes(); }, function (data) {
-      $scope.stashes = data;
-      updateFilters();
-    });
+        var stash = stashesService.get(stashes, $scope.id);
+        // Prepare rich output
+        angular.forEach(stash.content, function(value, key) { // jshint ignore:line
+          value = $filter('getTimestamp')(value);
+          value = $filter('richOutput')(value);
+          stash.content[key] = value; // jshint ignore:line
+        });
+
+        $scope.stash = stash;
+      })
+      .error(function(error) {
+        if (error !== null) {
+          console.error(JSON.stringify(error));
+        }
+      });
+
+    // Get health and metrics
+    var timer = Sensu.updateMetrics();
     $scope.$on('$destroy', function() {
       Sensu.stop(timer);
     });
-
-    // Filters
-    $scope.$watchGroup(['filters.q', 'filters.dc'], function(newValues, oldValues) {
-      updateFilters();
-      helperService.updateSelected(newValues, oldValues, $scope.filtered, $scope.selected);
-    });
-
-    // Routing
-    $scope.filters = {};
-    routingService.initFilters($routeParams, $scope.filters, ['dc', 'limit', 'q']);
-    $scope.$on('$locationChangeSuccess', function(){
-      routingService.updateFilters($routeParams, $scope.filters);
-    });
-
-    // Services
-    $scope.filterComparator = filterService.comparator;
-    $scope.permalink = routingService.permalink;
-    $scope.selectAll = helperService.selectAll;
-    $scope.user = userService;
-    $scope.deleteStash = function(id) {
-      stashesService.deleteStash(id).then(function() {
-        $scope.filtered = $filter('filter')($scope.filtered, {_id: '!'+id});
-        $rootScope.skipOneRefresh = true;
-      });
-    };
-    $scope.deleteStashes = function() {
-      helperService.deleteItems(stashesService.deleteStash, $scope.filtered, $scope.selected).then(function(filtered){
-        $scope.filtered = filtered;
-      });
-    };
-
-    var updateFilters = function() {
-      var filtered = $filter('filter')($scope.stashes, {dc: $scope.filters.dc}, $scope.filterComparator);
-      filtered = $filter('filter')(filtered, $scope.filters.q);
-      filtered = $filter('collection')(filtered, 'stashes');
-      $scope.filtered = filtered;
-    };
   }
 ]);
 
@@ -652,5 +671,70 @@ controllerModule.controller('StashModalController', ['conf', '$filter', 'items',
     // Services
     $scope.findStash = stashesService.find;
     $scope.getPath = stashesService.getPath;
+  }
+]);
+
+/**
+* Stashes
+*/
+controllerModule.controller('StashesController', ['$filter', 'filterService', 'helperService', '$rootScope', '$routeParams', 'routingService', '$scope', 'Sensu', 'stashesService', 'titleFactory', 'userService',
+  function ($filter, filterService, helperService, $rootScope, $routeParams, routingService, $scope, Sensu, stashesService, titleFactory, userService) {
+    $scope.pageHeaderText = 'Stashes';
+    titleFactory.set($scope.pageHeaderText);
+
+    $scope.predicate = 'client';
+    $scope.reverse = false;
+    $scope.selectAll = {checked: false};
+    $scope.selected = {all: false, ids: {}};
+
+    // Get stashes
+    $scope.stashes = [];
+    $scope.filtered = [];
+    var timer = Sensu.updateStashes();
+    $scope.$watch(function () { return Sensu.getStashes(); }, function (data) {
+      $scope.stashes = data;
+      updateFilters();
+    });
+    $scope.$on('$destroy', function() {
+      Sensu.stop(timer);
+    });
+
+    // Filters
+    $scope.$watchGroup(['collection.search', 'filters.q', 'filters.dc'], function(newValues, oldValues) {
+      updateFilters();
+      helperService.updateSelected(newValues, oldValues, $scope.filtered, $scope.selected);
+    });
+
+    // Routing
+    $scope.filters = {};
+    routingService.initFilters($routeParams, $scope.filters, ['dc', 'limit', 'q']);
+    $scope.$on('$locationChangeSuccess', function(){
+      routingService.updateFilters($routeParams, $scope.filters);
+    });
+
+    // Services
+    $scope.filterComparator = filterService.comparator;
+    $scope.go = routingService.go;
+    $scope.permalink = routingService.permalink;
+    $scope.selectAll = helperService.selectAll;
+    $scope.user = userService;
+    $scope.deleteStash = function(id) {
+      stashesService.deleteStash(id).then(function() {
+        $scope.filtered = $filter('filter')($scope.filtered, {_id: '!'+id});
+        $rootScope.skipOneRefresh = true;
+      });
+    };
+    $scope.deleteStashes = function() {
+      helperService.deleteItems(stashesService.deleteStash, $scope.filtered, $scope.selected).then(function(filtered){
+        $scope.filtered = filtered;
+      });
+    };
+
+    var updateFilters = function() {
+      var filtered = $filter('filter')($scope.stashes, {dc: $scope.filters.dc}, $scope.filterComparator);
+      filtered = $filter('filter')(filtered, $scope.filters.q);
+      filtered = $filter('collection')(filtered, 'stashes');
+      $scope.filtered = filtered;
+    };
   }
 ]);

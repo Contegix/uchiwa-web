@@ -152,6 +152,9 @@ filterModule.filter('getStatusClass', function() {
 
 filterModule.filter('getTimestamp', ['conf', function (conf) {
   return function(timestamp) {
+    if (angular.isUndefined(timestamp) || timestamp === null) {
+      return '';
+    }
     if (isNaN(timestamp) || timestamp.toString().length !== 10) {
       return timestamp;
     }
@@ -206,6 +209,17 @@ filterModule.filter('hideOccurrences', function() {
   };
 });
 
+filterModule.filter('highlight', function() {
+  return function(text) {
+    if(typeof text === 'object') {
+      var code = hljs.highlight('json', angular.toJson(text, true)).value;
+      var output = '<pre class=\"hljs\">' + code + '</pre>';
+      return output;
+    }
+    return text;
+  };
+});
+
 filterModule.filter('imagey', function() {
   return function(url) {
     if (!url) {
@@ -231,12 +245,17 @@ filterModule.filter('relativeTimestamp', function() {
 filterModule.filter('richOutput', ['$filter', '$sce', '$sanitize', '$interpolate', function($filter, $sce, $sanitize, $interpolate) {
   return function(text) {
     var output = '';
+
+    if (angular.isUndefined(text) || text === null) {
+      return '';
+    }
+
     if(typeof text === 'object') {
       if (text instanceof Array) {
         output = text.join(', ');
       } else {
-        var code = hljs.highlight('json', angular.toJson(text, true)).value;
-        output = '<pre class=\"hljs\">' + code + '</pre>';
+        // We will highlight other objects with the "highlight" filter
+        output = text;
       }
     } else if (typeof text === 'number' || typeof text === 'boolean') {
       output = text.toString();
