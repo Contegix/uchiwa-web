@@ -7,14 +7,12 @@
   </span>
   <ul class="dropdown-menu">
     <li ng-class="{selected: filters.dc.length === 0}">
-      <!-- <a href="" ng-click="permalink($event, 'dc', [])" -->
       <a href="" ng-click="filters.dc = []">
         <i class="fa fa-cloud"></i>
         All Datacenters
       </a>
     </li>
     <li ng-repeat="datacenter in datacenters | orderBy:'name'" ng-class="{selected: filters.dc.indexOf(datacenter.name) > -1}">
-      <!-- <a href="" ng-click="permalink($event, 'dc', [datacenter.name])"> -->
       <a href="" ng-click="i = filters.dc.indexOf(datacenter.name); i > -1 ? filters.dc.splice(i, 1) : filters.dc.push(datacenter.name)">
         <i class="fa fa-cloud"></i>
         {{datacenter.name}}
