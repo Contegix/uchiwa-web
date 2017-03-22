@@ -7,6 +7,7 @@ constantModule.value('conf', {
   hideSilenced: false,
   hideClientsSilenced: false,
   hideOccurrences: false,
+  dc: [],
   refresh: 10000,
   theme: 'uchiwa-default'
 });

@@ -146,7 +146,7 @@ controllerModule.controller('ChecksController', ['checksService', '$filter', 'fi
     };
 
     var updateFilters = function() {
-      var filtered = $filter('filter')($scope.checks, {dc: $scope.filters.dc}, $scope.filterComparator);
+      var filtered = $filter('filter')($scope.checks, {dc: $scope.filters.dc}, $scope.filterIncludeComparator);
       filtered = $filter('filter')(filtered, $scope.filters.q);
       filtered = $filter('collection')(filtered, 'checks');
       $scope.filtered = filtered;
@@ -255,8 +255,8 @@ controllerModule.controller('ClientController', ['backendService', 'clientsServi
 /**
 * Clients
 */
-controllerModule.controller('ClientsController', ['clientsService', '$filter', 'filterService', 'helperService', '$rootScope', '$routeParams', 'routingService', '$scope', 'Sensu', 'stashesService', 'titleFactory', 'userService',
-  function (clientsService, $filter, filterService, helperService, $rootScope, $routeParams, routingService, $scope, Sensu, stashesService, titleFactory, userService) {
+controllerModule.controller('ClientsController', ['clientsService', '$filter', 'filterService', 'helperService', '$rootScope', '$routeParams', 'routingService', '$scope', 'Sensu', 'stashesService', 'titleFactory', 'userService', '$cookieStore',
+  function (clientsService, $filter, filterService, helperService, $rootScope, $routeParams, routingService, $scope, Sensu, stashesService, titleFactory, userService, $cookieStore) {
     $scope.pageHeaderText = 'Clients';
     titleFactory.set($scope.pageHeaderText);
 
@@ -300,6 +300,7 @@ controllerModule.controller('ClientsController', ['clientsService', '$filter', '
 
     // Services
     $scope.filterComparator = filterService.comparator;
+    $scope.filterIncludeComparator = filterService.includeComparator;
     $scope.go = routingService.go;
     $scope.openLink = helperService.openLink;
     $scope.permalink = routingService.permalink;
@@ -315,8 +316,13 @@ controllerModule.controller('ClientsController', ['clientsService', '$filter', '
       helperService.silenceItems(stashesService.stash, $scope.filtered, $scope.selected);
     };
 
+    $scope.filters.dc = $cookieStore.get('dc') || conf.dc
+    $scope.$watch('filters.dc', function () {
+      $cookieStore.put('dc', $scope.filters.dc);
+    }, true);
+
     var updateFilters = function() {
-      var filtered = $filter('filter')($scope.clients, {dc: $scope.filters.dc}, $scope.filterComparator);
+      var filtered = $filter('filter')($scope.clients, {dc: $scope.filters.dc}, $scope.filterIncludeComparator);
       filtered = $filter('filter')(filtered, {status: $scope.filters.status});
       filtered = $filter('filterSubscriptions')(filtered, $scope.filters.subscription);
       filtered = $filter('filter')(filtered, $scope.filters.q);
@@ -384,6 +390,7 @@ controllerModule.controller('EventsController', ['clientsService', 'conf', '$coo
 
     // Services
     $scope.filterComparator = filterService.comparator;
+    $scope.filterIncludeComparator = filterService.includeComparator;
     $scope.go = routingService.go;
     $scope.openLink = helperService.openLink;
     $scope.permalink = routingService.permalink;
@@ -400,7 +407,7 @@ controllerModule.controller('EventsController', ['clientsService', 'conf', '$coo
     };
 
     var updateFilters = function() {
-      var filtered = $filter('filter')($scope.events, {dc: $scope.filters.dc}, $scope.filterComparator);
+      var filtered = $filter('filter')($scope.events, {dc: $scope.filters.dc}, $scope.filterIncludeComparator);
       filtered = $filter('filter')(filtered, {check: {status: $scope.filters.status}});
       filtered = $filter('hideSilenced')(filtered, $scope.filters.silenced);
       filtered = $filter('hideClientsSilenced')(filtered, $scope.filters.clientsSilenced);
@@ -410,6 +417,12 @@ controllerModule.controller('EventsController', ['clientsService', 'conf', '$coo
       filtered = $filter('collection')(filtered, 'events');
       $scope.filtered = filtered;
     };
+
+
+    $scope.filters.dc = $cookieStore.get('dc') || conf.dc
+    $scope.$watch('filters.dc', function () {
+      $cookieStore.put('dc', $scope.filters.dc);
+    }, true);
 
     // Hide silenced
     $scope.filters.silenced = $cookieStore.get('hideSilenced') || conf.hideSilenced;
@@ -677,8 +690,8 @@ controllerModule.controller('StashModalController', ['conf', '$filter', 'items',
 /**
 * Stashes
 */
-controllerModule.controller('StashesController', ['$filter', 'filterService', 'helperService', '$rootScope', '$routeParams', 'routingService', '$scope', 'Sensu', 'stashesService', 'titleFactory', 'userService',
-  function ($filter, filterService, helperService, $rootScope, $routeParams, routingService, $scope, Sensu, stashesService, titleFactory, userService) {
+controllerModule.controller('StashesController', ['$filter', 'filterService', 'helperService', '$rootScope', '$routeParams', 'routingService', '$scope', 'Sensu', 'stashesService', 'titleFactory', 'userService', '$cookieStore',
+  function ($filter, filterService, helperService, $rootScope, $routeParams, routingService, $scope, Sensu, stashesService, titleFactory, userService, $cookieStore) {
     $scope.pageHeaderText = 'Stashes';
     titleFactory.set($scope.pageHeaderText);
 
@@ -714,6 +727,7 @@ controllerModule.controller('StashesController', ['$filter', 'filterService', 'h
 
     // Services
     $scope.filterComparator = filterService.comparator;
+    $scope.filterIncludeComparator = filterService.includeComparator;
     $scope.go = routingService.go;
     $scope.permalink = routingService.permalink;
     $scope.selectAll = helperService.selectAll;
@@ -731,10 +745,15 @@ controllerModule.controller('StashesController', ['$filter', 'filterService', 'h
     };
 
     var updateFilters = function() {
-      var filtered = $filter('filter')($scope.stashes, {dc: $scope.filters.dc}, $scope.filterComparator);
+      var filtered = $filter('filter')($scope.stashes, {dc: $scope.filters.dc}, $scope.filterIncludeComparator);
       filtered = $filter('filter')(filtered, $scope.filters.q);
       filtered = $filter('collection')(filtered, 'stashes');
       $scope.filtered = filtered;
     };
+
+    $scope.filters.dc = $cookieStore.get('dc') || conf.dc
+    $scope.$watch('filters.dc', function () {
+      $cookieStore.put('dc', $scope.filters.dc);
+    }, true);
   }
 ]);

@@ -202,6 +202,12 @@ serviceModule.service('filterService', function () {
     }
     return angular.equals(actual, expected);
   };
+  this.includeComparator = function(actual, list) {
+    if (angular.isUndefined(list) || list === '' || list.length === 0) {
+      return true;
+    }
+    return list.indexOf(actual) > -1;
+  };
 });
 
 /**
